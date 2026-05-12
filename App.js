@@ -278,9 +278,16 @@ ${result.hospital}
 
   const handleMedicineAlarm = () => {
     setShowFamilyMessage(false);
+    setFamilyMessage("");
     setAppNotice(
       "약 알림 설정 기능은 추후 구현 예정입니다. 현재는 버튼 UI만 먼저 추가했습니다."
     );
+  };
+
+  const handleCloseFamilyMessage = () => {
+    setShowFamilyMessage(false);
+    setFamilyMessage("");
+    setAppNotice("");
   };
 
   const appContent = (
@@ -399,7 +406,7 @@ ${result.hospital}
 
             <TouchableOpacity
               style={styles.closeFamilyButton}
-              onPress={() => setShowFamilyMessage(false)}
+              onPress={handleCloseFamilyMessage}
             >
               <Text style={styles.closeFamilyButtonText}>요약문 닫기</Text>
             </TouchableOpacity>
