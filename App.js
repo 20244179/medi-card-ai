@@ -377,7 +377,7 @@ export default function App() {
     setMedicineHintType("");
     setOcrProgress("");
     setIsPhotoAnalyzing(false);
-    setAppNotice("첨부된 약 봉투 사진을 삭제했습니다.");
+    setAppNotice("");
   };
 
   const handleClear = () => {
