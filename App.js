@@ -25,6 +25,9 @@ export default function App() {
   const [medicinePhotoUri, setMedicinePhotoUri] = useState("");
   const [medicinePhotoName, setMedicinePhotoName] = useState("");
   const [medicinePhotoAnalysis, setMedicinePhotoAnalysis] = useState("");
+  const [medicineOcrText, setMedicineOcrText] = useState("");
+  const [medicineHintType, setMedicineHintType] = useState("");
+  const [ocrProgress, setOcrProgress] = useState("");
   const [isPhotoAnalyzing, setIsPhotoAnalyzing] = useState(false);
 
   const [familyMessage, setFamilyMessage] = useState("");
@@ -113,6 +116,110 @@ export default function App() {
     recognitionRef.current = recognition;
   }, []);
 
+  const normalizeText = (text) => {
+    return String(text || "")
+      .toLowerCase()
+      .replace(/\s+/g, " ")
+      .trim();
+  };
+
+  const detectMedicineType = (ocrText, fileName = "") => {
+    const combined = normalizeText(`${ocrText} ${fileName}`);
+
+    const ppiKeywords = [
+      "오메프라졸",
+      "omeprazole",
+      "에스오메프라졸",
+      "esomeprazole",
+      "란소프라졸",
+      "lansoprazole",
+      "판토프라졸",
+      "pantoprazole",
+      "라베프라졸",
+      "rabeprazole",
+      "ppi",
+      "위산",
+      "역류",
+      "식도염",
+      "식전",
+      "공복",
+    ];
+
+    const bpKeywords = [
+      "암로디핀",
+      "amlodipine",
+      "혈압",
+      "고혈압",
+      "로사르탄",
+      "losartan",
+      "발사르탄",
+      "valsartan",
+      "텔미사르탄",
+      "telmisartan",
+      "올메사르탄",
+      "olmesartan",
+      "칸데사르탄",
+      "candesartan",
+    ];
+
+    const diabetesKeywords = [
+      "메트포르민",
+      "metformin",
+      "당뇨",
+      "혈당",
+      "인슐린",
+      "insulin",
+      "글리메피리드",
+      "glimepiride",
+      "다이아벡스",
+    ];
+
+    const hasAny = (keywords) => keywords.some((word) => combined.includes(word));
+
+    if (hasAny(ppiKeywords)) {
+      return {
+        type: "reflux",
+        title: "위산 억제제 또는 역류성 식도염 관련 약으로 추정됩니다.",
+        message:
+          "사진 속 글자에서 위산 억제제, 식전 복용, 역류성 식도염과 관련된 단서가 확인되었습니다. 약 봉투에 식전 복용 안내가 있다면 보통 식사 30분 전 공복 복용이 중요합니다. 단, 정확한 약 이름과 복용법은 처방전과 약 봉투를 함께 확인해야 합니다.",
+      };
+    }
+
+    if (hasAny(bpKeywords)) {
+      return {
+        type: "bloodPressure",
+        title: "혈압약 관련 약으로 추정됩니다.",
+        message:
+          "사진 속 글자에서 혈압약 또는 고혈압 관련 단서가 확인되었습니다. 혈압약은 증상이 없어도 매일 같은 시간에 꾸준히 복용하는 것이 중요하며, 임의로 중단하면 혈압이 다시 올라갈 수 있습니다.",
+      };
+    }
+
+    if (hasAny(diabetesKeywords)) {
+      return {
+        type: "diabetes",
+        title: "당뇨약 또는 혈당 조절 관련 약으로 추정됩니다.",
+        message:
+          "사진 속 글자에서 당뇨약 또는 혈당 조절 관련 단서가 확인되었습니다. 약 종류에 따라 식전·식후 복용법이 달라질 수 있으므로 약 봉투의 복용 시간을 꼭 확인해야 합니다. 식은땀, 손떨림, 심한 어지러움 같은 저혈당 증상도 주의해야 합니다.",
+      };
+    }
+
+    if (combined.length > 0) {
+      return {
+        type: "unknown",
+        title: "약 봉투의 일부 글자가 인식되었습니다.",
+        message:
+          "사진에서 일부 글자를 읽었지만, 현재 프로토타입의 예시 약물군과 명확히 매칭되지는 않았습니다. 실제 서비스에서는 OCR 결과를 약물 데이터베이스와 연결해 약 이름, 용량, 복용 시간을 더 정확히 확인하도록 확장할 수 있습니다.",
+      };
+    }
+
+    return {
+      type: "unknown",
+      title: "약 봉투 글자 인식이 명확하지 않습니다.",
+      message:
+        "사진이 흐리거나 글자가 작으면 OCR 인식이 어려울 수 있습니다. 약 봉투를 밝은 곳에서 정면으로 촬영하고, 약 이름과 복용법이 잘 보이게 다시 첨부하면 더 좋습니다.",
+    };
+  };
+
   const handleVoiceInput = () => {
     if (!speechSupported || !recognitionRef.current) {
       setVoiceMessage("현재 환경에서는 음성인식을 사용할 수 없습니다.");
@@ -131,13 +238,55 @@ export default function App() {
     }
   };
 
+  const runMedicineOcr = async (imageUri, fileName) => {
+    setIsPhotoAnalyzing(true);
+    setOcrProgress("OCR 준비 중입니다...");
+    setMedicineOcrText("");
+    setMedicinePhotoAnalysis("");
+    setMedicineHintType("");
+
+    try {
+      const Tesseract = await import("tesseract.js");
+
+      const ocrResult = await Tesseract.recognize(imageUri, "kor+eng", {
+        logger: (m) => {
+          if (m.status === "recognizing text" && typeof m.progress === "number") {
+            const percent = Math.round(m.progress * 100);
+            setOcrProgress(`약 봉투 글자를 읽는 중입니다... ${percent}%`);
+          } else if (m.status) {
+            setOcrProgress(`OCR 진행 중: ${m.status}`);
+          }
+        },
+      });
+
+      const extractedText = ocrResult?.data?.text || "";
+      const detected = detectMedicineType(extractedText, fileName);
+
+      setMedicineOcrText(extractedText.trim());
+      setMedicineHintType(detected.type);
+      setMedicinePhotoAnalysis(`${detected.title}\n${detected.message}`);
+      setOcrProgress("OCR 분석이 완료되었습니다.");
+    } catch (error) {
+      const detected = detectMedicineType("", fileName);
+
+      setMedicineOcrText("");
+      setMedicineHintType(detected.type);
+      setMedicinePhotoAnalysis(
+        `OCR 분석 중 오류가 발생했습니다. 현재는 파일명과 입력 내용을 바탕으로 예시 분석을 제공합니다.\n${detected.message}`
+      );
+      setOcrProgress("OCR 분석에 실패했습니다.");
+    } finally {
+      setIsPhotoAnalyzing(false);
+    }
+  };
+
   const handlePickMedicinePhoto = () => {
     setShowFamilyMessage(false);
     setAppNotice("");
 
     if (Platform.OS !== "web") {
       setAppNotice(
-        "약 사진 추가 기능은 현재 웹 시연 버전에서 우선 지원됩니다."
+        "약 사진 OCR 기능은 현재 웹 시연 버전에서 우선 지원됩니다."
       );
       return;
     }
@@ -157,17 +306,14 @@ export default function App() {
 
       setMedicinePhotoName(file.name);
       setMedicinePhotoAnalysis("");
-      setIsPhotoAnalyzing(true);
+      setMedicineOcrText("");
+      setMedicineHintType("");
+      setOcrProgress("");
 
       reader.onload = () => {
-        setMedicinePhotoUri(reader.result);
-
-        setTimeout(() => {
-          setIsPhotoAnalyzing(false);
-          setMedicinePhotoAnalysis(
-            "약 사진이 첨부되었습니다. 현재 프로토타입에서는 약 사진을 진료 내용과 함께 참고하여 복약 카드를 생성합니다. 실제 서비스화 단계에서는 OCR과 약물 데이터베이스를 연동해 약 이름, 용량, 복용 시간을 자동 인식하도록 확장할 수 있습니다."
-          );
-        }, 1000);
+        const imageDataUrl = reader.result;
+        setMedicinePhotoUri(imageDataUrl);
+        runMedicineOcr(imageDataUrl, file.name);
       };
 
       reader.readAsDataURL(file);
@@ -180,8 +326,11 @@ export default function App() {
     setMedicinePhotoUri("");
     setMedicinePhotoName("");
     setMedicinePhotoAnalysis("");
+    setMedicineOcrText("");
+    setMedicineHintType("");
+    setOcrProgress("");
     setIsPhotoAnalyzing(false);
-    setAppNotice("첨부된 약 사진을 삭제했습니다.");
+    setAppNotice("첨부된 약 봉투 사진을 삭제했습니다.");
   };
 
   const handleClear = () => {
@@ -190,6 +339,9 @@ export default function App() {
     setMedicinePhotoUri("");
     setMedicinePhotoName("");
     setMedicinePhotoAnalysis("");
+    setMedicineOcrText("");
+    setMedicineHintType("");
+    setOcrProgress("");
     setIsPhotoAnalyzing(false);
     setFamilyMessage("");
     setShowFamilyMessage(false);
@@ -200,11 +352,11 @@ export default function App() {
   const handleTranslate = () => {
     if (!userInput.trim() && !medicinePhotoUri) {
       setResult({
-        summary: "진료 내용 또는 약 사진을 먼저 입력해주세요.",
+        summary: "진료 내용 또는 약 봉투 사진을 먼저 입력해주세요.",
         disease:
           "직접 입력하거나, 음성 입력 버튼을 눌러 진료 중 들은 내용을 말씀해주시면 됩니다.",
         medicine:
-          "약 봉투나 약 사진을 함께 첨부하면 복용법을 더 명확히 정리할 수 있습니다.",
+          "약 봉투 사진을 함께 첨부하면 OCR로 약 이름과 복용법 단서를 읽어 복약 설명에 반영할 수 있습니다.",
         caution:
           "음식, 운동, 생활습관에 대해 들은 주의사항도 함께 입력해주세요.",
         hospital:
@@ -221,55 +373,61 @@ export default function App() {
 
     setTimeout(() => {
       const text = userInput.toLowerCase();
+      const detectedText = normalizeText(`${text} ${medicineOcrText}`);
+      const hasRefluxHint =
+        detectedText.includes("역류") ||
+        detectedText.includes("속 쓰림") ||
+        detectedText.includes("속쓰림") ||
+        detectedText.includes("식도염") ||
+        detectedText.includes("위산") ||
+        medicineHintType === "reflux";
 
-      if (
-        text.includes("역류") ||
-        text.includes("속 쓰림") ||
-        text.includes("속쓰림") ||
-        text.includes("식도염") ||
-        text.includes("위산")
-      ) {
+      const hasBpHint =
+        detectedText.includes("혈압") ||
+        detectedText.includes("고혈압") ||
+        detectedText.includes("암로디핀") ||
+        medicineHintType === "bloodPressure";
+
+      const hasDiabetesHint =
+        detectedText.includes("당뇨") ||
+        detectedText.includes("혈당") ||
+        detectedText.includes("인슐린") ||
+        medicineHintType === "diabetes";
+
+      if (hasRefluxHint) {
         setResult({
           summary:
-            "역류성 식도염이 의심되며, 위산 억제제를 식전 30분에 꾸준히 복용하고 자극적인 음식은 피하는 것이 중요합니다.",
+            "역류성 식도염 또는 위산 관련 약으로 보이며, 위산 억제제는 식전 30분 복용 여부를 약 봉투에서 확인하는 것이 중요합니다.",
           disease:
-            "역류성 식도염이에요. 위에 있는 음식물이나 위산이 식도로 거꾸로 올라와서 가슴이 쓰리거나 신물이 올라오는 병이에요. 약을 잘 드시고 생활습관을 조절하면 대부분 증상이 좋아질 수 있어요.",
+            "역류성 식도염은 위에 있는 음식물이나 위산이 식도로 거꾸로 올라와서 가슴이 쓰리거나 신물이 올라오는 병이에요. 진료 내용이나 약 봉투에서 위산 억제제 관련 단서가 확인되었습니다.",
           medicine:
-            "처방받으신 약은 위산을 줄여주는 약, 즉 PPI 계열 약일 가능성이 높아요. 이 약은 보통 식사 30분 전 공복에 드셔야 효과가 가장 좋아요. 식후에 드시면 효과가 줄어들 수 있으니, 매일 같은 시간에 한 달간 꾸준히 드시는 것이 중요해요.",
+            "약 봉투 사진에서 위산 억제제 또는 식전 복용과 관련된 단서가 확인되었습니다. PPI 계열 약은 보통 식사 30분 전 공복에 복용할 때 효과가 좋습니다. 다만 정확한 복용 시간은 약 봉투와 처방전을 우선 확인해주세요.",
           caution:
             "매운 음식, 카페인(커피·콜라), 기름진 음식, 술은 피해주세요. 식사 후 2시간 동안은 눕지 마시고, 잠자기 3시간 전에는 음식을 드시지 않는 것이 좋아요.",
           hospital:
             "한 달 뒤에도 증상이 계속되거나 더 심해지면 병원에 다시 방문해야 해요. 피를 토하거나, 검은 변을 보거나, 삼키기 힘든 증상이 생기면 예약일까지 기다리지 말고 빨리 진료를 받는 것이 좋아요.",
         });
-      } else if (
-        text.includes("혈압") ||
-        text.includes("고혈압") ||
-        text.includes("암로디핀")
-      ) {
+      } else if (hasBpHint) {
         setResult({
           summary:
-            "혈압약은 증상이 없어도 매일 꾸준히 복용해야 하며, 짠 음식 줄이기와 혈압 기록이 중요합니다.",
+            "혈압약 관련 단서가 확인되었으며, 증상이 없어도 매일 같은 시간에 꾸준히 복용하는 것이 중요합니다.",
           disease:
             "고혈압은 혈관 안의 압력이 계속 높은 상태예요. 당장 증상이 없더라도 오래 지속되면 심장, 뇌혈관, 콩팥에 부담을 줄 수 있어서 꾸준한 관리가 중요해요.",
           medicine:
-            "처방받은 혈압약은 매일 같은 시간에 꾸준히 드시는 것이 중요해요. 증상이 없다고 임의로 끊으면 혈압이 다시 올라갈 수 있어요. 어지러움이나 심한 부종 같은 증상이 있으면 병원에 문의해주세요.",
+            "약 봉투 사진에서 혈압약 관련 단서가 확인되었습니다. 혈압약은 매일 같은 시간에 꾸준히 드시는 것이 중요해요. 증상이 없다고 임의로 끊으면 혈압이 다시 올라갈 수 있습니다.",
           caution:
             "짠 음식은 줄이고, 규칙적인 운동과 체중 관리가 도움이 돼요. 집에서 혈압을 재서 기록하면 진료 때 도움이 됩니다.",
           hospital:
             "심한 두통, 가슴통증, 숨참, 한쪽 팔다리 마비, 말이 어눌해지는 증상이 있으면 바로 진료를 받아야 해요. 혈압이 계속 높게 나오면 예약일 전이라도 병원에 문의해주세요.",
         });
-      } else if (
-        text.includes("당뇨") ||
-        text.includes("혈당") ||
-        text.includes("인슐린")
-      ) {
+      } else if (hasDiabetesHint) {
         setResult({
           summary:
-            "혈당 관리를 위해 약 복용 시간과 식사 시간을 지키고, 저혈당 증상을 조심해야 합니다.",
+            "당뇨약 또는 혈당 조절 관련 단서가 확인되었으며, 약 복용 시간과 식사 시간을 함께 지키는 것이 중요합니다.",
           disease:
             "당뇨병은 혈액 속 포도당, 즉 혈당이 높게 유지되는 병이에요. 혈당이 오래 높으면 눈, 콩팥, 신경, 혈관에 문제가 생길 수 있어서 꾸준한 관리가 필요해요.",
           medicine:
-            "당뇨약은 처방받은 시간에 맞춰 꾸준히 복용해야 해요. 약 종류에 따라 식전, 식후 복용법이 다를 수 있으므로 약 봉투의 안내를 꼭 확인해주세요.",
+            "약 봉투 사진에서 당뇨약 또는 혈당 조절 관련 단서가 확인되었습니다. 당뇨약은 약 종류에 따라 식전·식후 복용법이 다를 수 있으므로 약 봉투의 복용 시간을 꼭 확인해주세요.",
           caution:
             "식사를 거르지 않고 규칙적으로 드시는 것이 중요해요. 단 음료나 과도한 간식은 줄이고, 혈당을 기록하면 치료 조절에 도움이 됩니다.",
           hospital:
@@ -278,11 +436,12 @@ export default function App() {
       } else if (medicinePhotoUri && !userInput.trim()) {
         setResult({
           summary:
-            "약 사진이 첨부되었습니다. 약 이름과 복용법은 처방전 또는 약 봉투를 함께 확인하는 것이 중요합니다.",
+            "약 봉투 사진이 첨부되었습니다. OCR 결과를 바탕으로 약 이름과 복용법을 확인하려고 시도했습니다.",
           disease:
-            "현재는 진료 내용이 입력되지 않아 정확한 병명은 알 수 없습니다. 다만 약 사진을 바탕으로 복약 정보를 정리할 준비가 되어 있습니다. 병명이나 증상을 함께 입력하면 더 구체적인 설명을 받을 수 있습니다.",
+            "현재는 진료 내용이 입력되지 않아 정확한 병명은 알 수 없습니다. 병명이나 증상을 함께 입력하면 더 구체적인 설명을 받을 수 있습니다.",
           medicine:
-            "약 사진이 첨부되었습니다. 실제 서비스에서는 사진 속 약 봉투나 처방전의 글자를 OCR로 읽어 약 이름, 용량, 복용 시간을 자동 추출할 수 있습니다. 현재 프로토타입에서는 약을 처방받은 그대로 복용하고, 약 봉투의 식전·식후·횟수 안내를 확인하도록 안내합니다.",
+            medicinePhotoAnalysis ||
+            "약 봉투 사진이 첨부되었습니다. 사진 속 약 이름, 용량, 복용 시간을 확인해 복약 설명에 반영할 수 있습니다.",
           caution:
             "사진만으로 약을 임의로 판단하거나 복용법을 바꾸면 안 됩니다. 약 이름이 헷갈리거나 복용 시간을 잊은 경우에는 약국이나 병원에 확인하는 것이 안전합니다.",
           hospital:
@@ -291,12 +450,12 @@ export default function App() {
       } else {
         setResult({
           summary:
-            "입력하신 진료 내용을 바탕으로, 정확한 진단명·복약법·주의사항은 처방전과 의료진 설명을 함께 확인하는 것이 중요합니다.",
+            "입력하신 진료 내용과 약 봉투 사진을 바탕으로, 정확한 진단명·복약법·주의사항은 처방전과 의료진 설명을 함께 확인하는 것이 중요합니다.",
           disease:
             "입력하신 진료 내용을 바탕으로 보면, 현재 증상과 의사 선생님의 설명을 쉽게 정리해 이해하는 것이 중요해요. 정확한 진단명은 의료진의 설명과 처방전을 함께 확인해야 해요.",
           medicine:
             medicinePhotoUri
-              ? "약 사진이 함께 첨부되었습니다. 약은 처방받은 용법과 용량에 맞춰 복용해야 해요. 식전, 식후, 자기 전 등 복용 시간이 다를 수 있으므로 약 봉투나 처방전을 꼭 확인해주세요. 실제 서비스에서는 첨부 사진을 OCR로 읽어 약 이름과 복용 시간을 자동 추출하도록 확장할 수 있습니다."
+              ? `약 봉투 사진이 함께 첨부되었습니다. ${medicinePhotoAnalysis || "약 봉투의 약 이름과 복용 시간을 확인한 뒤 처방받은 용법과 용량에 맞춰 복용해야 합니다."}`
               : "약은 처방받은 용법과 용량에 맞춰 복용해야 해요. 식전, 식후, 자기 전 등 복용 시간이 다를 수 있으므로 약 봉투나 처방전을 꼭 확인해주세요. 약을 임의로 끊거나 두 배로 먹는 것은 피해야 해요.",
           caution:
             "생활습관 관리나 음식 조절에 대한 설명을 들었다면 잘 지키는 것이 좋아요. 증상이 갑자기 심해지거나 평소와 다른 증상이 생기면 병원에 문의해주세요.",
@@ -310,9 +469,12 @@ export default function App() {
   };
 
   const handleNotifyFamily = async () => {
-    const photoLine = medicinePhotoAnalysis
-      ? `\n첨부 약 사진 참고:\n${medicinePhotoAnalysis}\n`
-      : "";
+    const photoLine =
+      medicinePhotoAnalysis || medicineOcrText
+        ? `\n첨부 약 봉투 참고:\n${medicinePhotoAnalysis || ""}\n${
+            medicineOcrText ? `\nOCR로 읽은 글자:\n${medicineOcrText}` : ""
+          }\n`
+        : "";
 
     const message = `[진료 내용 요약]
 
@@ -428,13 +590,13 @@ ${photoLine}
             style={styles.photoButton}
             onPress={handlePickMedicinePhoto}
           >
-            <Text style={styles.photoButtonText}>📷 사진 추가</Text>
+            <Text style={styles.photoButtonText}>📷 약 봉투 사진 추가</Text>
           </TouchableOpacity>
 
           {medicinePhotoUri ? (
             <View style={styles.photoPreviewBox}>
               <View style={styles.photoPreviewHeader}>
-                <Text style={styles.photoPreviewTitle}>첨부된 약 사진</Text>
+                <Text style={styles.photoPreviewTitle}>첨부된 약 봉투 사진</Text>
                 <TouchableOpacity onPress={handleRemoveMedicinePhoto}>
                   <Text style={styles.photoRemoveText}>삭제</Text>
                 </TouchableOpacity>
@@ -450,9 +612,9 @@ ${photoLine}
                 <Text style={styles.photoFileName}>{medicinePhotoName}</Text>
               ) : null}
 
-              {isPhotoAnalyzing ? (
+              {isPhotoAnalyzing || ocrProgress ? (
                 <Text style={styles.photoAnalysisText}>
-                  AI가 약 사진을 분석하는 중입니다... ⏳
+                  {ocrProgress || "AI가 약 봉투 사진을 분석하는 중입니다... ⏳"}
                 </Text>
               ) : null}
 
@@ -460,6 +622,17 @@ ${photoLine}
                 <Text style={styles.photoAnalysisText}>
                   {medicinePhotoAnalysis}
                 </Text>
+              ) : null}
+
+              {medicineOcrText ? (
+                <View style={styles.ocrTextBox}>
+                  <Text style={styles.ocrTextTitle}>OCR로 읽은 글자</Text>
+                  <Text style={styles.ocrText}>
+                    {medicineOcrText.length > 450
+                      ? `${medicineOcrText.slice(0, 450)}...`
+                      : medicineOcrText}
+                  </Text>
+                </View>
               ) : null}
             </View>
           ) : null}
@@ -941,6 +1114,27 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     color: "#831843",
     fontWeight: "700",
+    marginBottom: 8,
+  },
+
+  ocrTextBox: {
+    backgroundColor: "#FDF2F8",
+    borderRadius: 14,
+    padding: 12,
+    marginTop: 6,
+  },
+
+  ocrTextTitle: {
+    fontSize: 13,
+    fontWeight: "900",
+    color: "#9D174D",
+    marginBottom: 6,
+  },
+
+  ocrText: {
+    fontSize: 12,
+    lineHeight: 18,
+    color: "#4B5563",
   },
 
   mainButton: {
