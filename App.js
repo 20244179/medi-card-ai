@@ -9,6 +9,7 @@ import {
   StyleSheet,
   KeyboardAvoidingView,
   Platform,
+  Image,
 } from "react-native";
 
 export default function App() {
@@ -20,6 +21,11 @@ export default function App() {
   const [speechSupported, setSpeechSupported] = useState(true);
   const [voiceMessage, setVoiceMessage] = useState("");
   const recognitionRef = useRef(null);
+
+  const [medicinePhotoUri, setMedicinePhotoUri] = useState("");
+  const [medicinePhotoName, setMedicinePhotoName] = useState("");
+  const [medicinePhotoAnalysis, setMedicinePhotoAnalysis] = useState("");
+  const [isPhotoAnalyzing, setIsPhotoAnalyzing] = useState(false);
 
   const [familyMessage, setFamilyMessage] = useState("");
   const [showFamilyMessage, setShowFamilyMessage] = useState(false);
@@ -125,9 +131,66 @@ export default function App() {
     }
   };
 
+  const handlePickMedicinePhoto = () => {
+    setShowFamilyMessage(false);
+    setAppNotice("");
+
+    if (Platform.OS !== "web") {
+      setAppNotice(
+        "약 사진 추가 기능은 현재 웹 시연 버전에서 우선 지원됩니다."
+      );
+      return;
+    }
+
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = "image/*";
+
+    input.onchange = (event) => {
+      const file = event.target.files && event.target.files[0];
+
+      if (!file) {
+        return;
+      }
+
+      const reader = new FileReader();
+
+      setMedicinePhotoName(file.name);
+      setMedicinePhotoAnalysis("");
+      setIsPhotoAnalyzing(true);
+
+      reader.onload = () => {
+        setMedicinePhotoUri(reader.result);
+
+        setTimeout(() => {
+          setIsPhotoAnalyzing(false);
+          setMedicinePhotoAnalysis(
+            "약 사진이 첨부되었습니다. 현재 프로토타입에서는 약 사진을 진료 내용과 함께 참고하여 복약 카드를 생성합니다. 실제 서비스화 단계에서는 OCR과 약물 데이터베이스를 연동해 약 이름, 용량, 복용 시간을 자동 인식하도록 확장할 수 있습니다."
+          );
+        }, 1000);
+      };
+
+      reader.readAsDataURL(file);
+    };
+
+    input.click();
+  };
+
+  const handleRemoveMedicinePhoto = () => {
+    setMedicinePhotoUri("");
+    setMedicinePhotoName("");
+    setMedicinePhotoAnalysis("");
+    setIsPhotoAnalyzing(false);
+    setAppNotice("첨부된 약 사진을 삭제했습니다.");
+  };
+
   const handleClear = () => {
     setUserInput("");
     setVoiceMessage("");
+    setMedicinePhotoUri("");
+    setMedicinePhotoName("");
+    setMedicinePhotoAnalysis("");
+    setIsPhotoAnalyzing(false);
     setFamilyMessage("");
     setShowFamilyMessage(false);
     setAppNotice("");
@@ -135,13 +198,13 @@ export default function App() {
   };
 
   const handleTranslate = () => {
-    if (!userInput.trim()) {
+    if (!userInput.trim() && !medicinePhotoUri) {
       setResult({
-        summary: "진료 내용을 먼저 입력해주세요.",
+        summary: "진료 내용 또는 약 사진을 먼저 입력해주세요.",
         disease:
           "직접 입력하거나, 음성 입력 버튼을 눌러 진료 중 들은 내용을 말씀해주시면 됩니다.",
         medicine:
-          "약 봉투나 처방전에 적힌 내용을 함께 입력하면 복용법을 더 명확히 정리할 수 있습니다.",
+          "약 봉투나 약 사진을 함께 첨부하면 복용법을 더 명확히 정리할 수 있습니다.",
         caution:
           "음식, 운동, 생활습관에 대해 들은 주의사항도 함께 입력해주세요.",
         hospital:
@@ -212,6 +275,19 @@ export default function App() {
           hospital:
             "식은땀, 손떨림, 심한 어지러움, 의식이 흐려지는 증상은 저혈당일 수 있어요. 이런 증상이 반복되거나 혈당이 너무 높게 유지되면 병원에 문의해야 해요.",
         });
+      } else if (medicinePhotoUri && !userInput.trim()) {
+        setResult({
+          summary:
+            "약 사진이 첨부되었습니다. 약 이름과 복용법은 처방전 또는 약 봉투를 함께 확인하는 것이 중요합니다.",
+          disease:
+            "현재는 진료 내용이 입력되지 않아 정확한 병명은 알 수 없습니다. 다만 약 사진을 바탕으로 복약 정보를 정리할 준비가 되어 있습니다. 병명이나 증상을 함께 입력하면 더 구체적인 설명을 받을 수 있습니다.",
+          medicine:
+            "약 사진이 첨부되었습니다. 실제 서비스에서는 사진 속 약 봉투나 처방전의 글자를 OCR로 읽어 약 이름, 용량, 복용 시간을 자동 추출할 수 있습니다. 현재 프로토타입에서는 약을 처방받은 그대로 복용하고, 약 봉투의 식전·식후·횟수 안내를 확인하도록 안내합니다.",
+          caution:
+            "사진만으로 약을 임의로 판단하거나 복용법을 바꾸면 안 됩니다. 약 이름이 헷갈리거나 복용 시간을 잊은 경우에는 약국이나 병원에 확인하는 것이 안전합니다.",
+          hospital:
+            "약을 먹은 뒤 두드러기, 호흡곤란, 심한 어지러움, 입술이나 얼굴이 붓는 증상이 생기면 즉시 진료를 받아야 합니다. 약을 잘못 먹었다고 생각되면 병원이나 약국에 문의해주세요.",
+        });
       } else {
         setResult({
           summary:
@@ -219,7 +295,9 @@ export default function App() {
           disease:
             "입력하신 진료 내용을 바탕으로 보면, 현재 증상과 의사 선생님의 설명을 쉽게 정리해 이해하는 것이 중요해요. 정확한 진단명은 의료진의 설명과 처방전을 함께 확인해야 해요.",
           medicine:
-            "약은 처방받은 용법과 용량에 맞춰 복용해야 해요. 식전, 식후, 자기 전 등 복용 시간이 다를 수 있으므로 약 봉투나 처방전을 꼭 확인해주세요. 약을 임의로 끊거나 두 배로 먹는 것은 피해야 해요.",
+            medicinePhotoUri
+              ? "약 사진이 함께 첨부되었습니다. 약은 처방받은 용법과 용량에 맞춰 복용해야 해요. 식전, 식후, 자기 전 등 복용 시간이 다를 수 있으므로 약 봉투나 처방전을 꼭 확인해주세요. 실제 서비스에서는 첨부 사진을 OCR로 읽어 약 이름과 복용 시간을 자동 추출하도록 확장할 수 있습니다."
+              : "약은 처방받은 용법과 용량에 맞춰 복용해야 해요. 식전, 식후, 자기 전 등 복용 시간이 다를 수 있으므로 약 봉투나 처방전을 꼭 확인해주세요. 약을 임의로 끊거나 두 배로 먹는 것은 피해야 해요.",
           caution:
             "생활습관 관리나 음식 조절에 대한 설명을 들었다면 잘 지키는 것이 좋아요. 증상이 갑자기 심해지거나 평소와 다른 증상이 생기면 병원에 문의해주세요.",
           hospital:
@@ -232,6 +310,10 @@ export default function App() {
   };
 
   const handleNotifyFamily = async () => {
+    const photoLine = medicinePhotoAnalysis
+      ? `\n첨부 약 사진 참고:\n${medicinePhotoAnalysis}\n`
+      : "";
+
     const message = `[진료 내용 요약]
 
 오늘의 핵심:
@@ -248,7 +330,7 @@ ${result.caution}
 
 4. 언제 다시 병원에 가야 하나요?
 ${result.hospital}
-
+${photoLine}
 ※ 이 내용은 진료 내용을 쉽게 정리한 보조 설명이며, 정확한 내용은 처방전과 의료진 설명을 함께 확인해주세요.`;
 
     setFamilyMessage(message);
@@ -340,6 +422,46 @@ ${result.hospital}
 
           {voiceMessage ? (
             <Text style={styles.voiceMessage}>{voiceMessage}</Text>
+          ) : null}
+
+          <TouchableOpacity
+            style={styles.photoButton}
+            onPress={handlePickMedicinePhoto}
+          >
+            <Text style={styles.photoButtonText}>📷 약 사진 추가</Text>
+          </TouchableOpacity>
+
+          {medicinePhotoUri ? (
+            <View style={styles.photoPreviewBox}>
+              <View style={styles.photoPreviewHeader}>
+                <Text style={styles.photoPreviewTitle}>첨부된 약 사진</Text>
+                <TouchableOpacity onPress={handleRemoveMedicinePhoto}>
+                  <Text style={styles.photoRemoveText}>삭제</Text>
+                </TouchableOpacity>
+              </View>
+
+              <Image
+                source={{ uri: medicinePhotoUri }}
+                style={styles.medicineImage}
+                resizeMode="cover"
+              />
+
+              {medicinePhotoName ? (
+                <Text style={styles.photoFileName}>{medicinePhotoName}</Text>
+              ) : null}
+
+              {isPhotoAnalyzing ? (
+                <Text style={styles.photoAnalysisText}>
+                  AI가 약 사진을 분석하는 중입니다... ⏳
+                </Text>
+              ) : null}
+
+              {medicinePhotoAnalysis ? (
+                <Text style={styles.photoAnalysisText}>
+                  {medicinePhotoAnalysis}
+                </Text>
+              ) : null}
+            </View>
           ) : null}
 
           <TouchableOpacity
@@ -754,6 +876,71 @@ const styles = StyleSheet.create({
     marginTop: -6,
     marginBottom: 14,
     lineHeight: 20,
+  },
+
+  photoButton: {
+    backgroundColor: "#FDF2F8",
+    paddingVertical: 15,
+    borderRadius: 16,
+    alignItems: "center",
+    borderWidth: 1.5,
+    borderColor: "#F9A8D4",
+    marginBottom: 14,
+  },
+
+  photoButtonText: {
+    color: "#9D174D",
+    fontSize: Platform.OS === "web" ? 16 : 18,
+    fontWeight: "900",
+  },
+
+  photoPreviewBox: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 18,
+    padding: 14,
+    borderWidth: 1.5,
+    borderColor: "#F9A8D4",
+    marginBottom: 14,
+  },
+
+  photoPreviewHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 10,
+  },
+
+  photoPreviewTitle: {
+    fontSize: 15,
+    fontWeight: "900",
+    color: "#9D174D",
+  },
+
+  photoRemoveText: {
+    fontSize: 14,
+    fontWeight: "900",
+    color: "#BE123C",
+  },
+
+  medicineImage: {
+    width: "100%",
+    height: 150,
+    borderRadius: 14,
+    backgroundColor: "#F3F4F6",
+    marginBottom: 8,
+  },
+
+  photoFileName: {
+    fontSize: 12,
+    color: "#6B7280",
+    marginBottom: 8,
+  },
+
+  photoAnalysisText: {
+    fontSize: 13,
+    lineHeight: 20,
+    color: "#831843",
+    fontWeight: "700",
   },
 
   mainButton: {
