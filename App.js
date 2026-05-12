@@ -203,7 +203,7 @@ export default function App() {
         type: "reflux",
         title: "위산 억제제 또는 역류성 식도염 관련 약으로 추정됩니다.",
         message:
-          "사진 속 글자에서 위산 억제제, 식전 복용, 역류성 식도염과 관련된 단서가 확인되었습니다. 약 봉투에 식전 복용 안내가 있다면 보통 식사 30분 전 공복 복용이 중요합니다. 단, 정확한 약 이름과 복용법은 처방전과 약 봉투를 함께 확인해야 합니다.",
+          "약 봉투에서 위산 억제제, 식전 복용, 역류성 식도염과 관련된 단서가 확인되었습니다. 약 봉투에 식전 복용 안내가 있다면 보통 식사 30분 전 공복 복용이 중요합니다. 단, 정확한 약 이름과 복용법은 처방전과 약 봉투를 함께 확인해야 합니다.",
       };
     }
 
@@ -212,7 +212,7 @@ export default function App() {
         type: "bloodPressure",
         title: "혈압약 관련 약으로 추정됩니다.",
         message:
-          "사진 속 글자에서 혈압약 또는 고혈압 관련 단서가 확인되었습니다. 혈압약은 증상이 없어도 매일 같은 시간에 꾸준히 복용하는 것이 중요하며, 임의로 중단하면 혈압이 다시 올라갈 수 있습니다.",
+          "약 봉투에서 혈압약 또는 고혈압 관련 단서가 확인되었습니다. 혈압약은 증상이 없어도 매일 같은 시간에 꾸준히 복용하는 것이 중요하며, 임의로 중단하면 혈압이 다시 올라갈 수 있습니다.",
       };
     }
 
@@ -221,24 +221,24 @@ export default function App() {
         type: "diabetes",
         title: "당뇨약 또는 혈당 조절 관련 약으로 추정됩니다.",
         message:
-          "사진 속 글자에서 당뇨약 또는 혈당 조절 관련 단서가 확인되었습니다. 약 종류에 따라 식전·식후 복용법이 달라질 수 있으므로 약 봉투의 복용 시간을 꼭 확인해야 합니다. 식은땀, 손떨림, 심한 어지러움 같은 저혈당 증상도 주의해야 합니다.",
+          "약 봉투에서 당뇨약 또는 혈당 조절 관련 단서가 확인되었습니다. 약 종류에 따라 식전·식후 복용법이 달라질 수 있으므로 약 봉투의 복용 시간을 꼭 확인해야 합니다. 식은땀, 손떨림, 심한 어지러움 같은 저혈당 증상도 주의해야 합니다.",
       };
     }
 
     if (combined.length > 0) {
       return {
         type: "unknown",
-        title: "약 봉투의 일부 글자가 인식되었습니다.",
+        title: "약 봉투의 일부 내용을 확인했습니다.",
         message:
-          "사진에서 일부 글자를 읽었지만, 현재 프로토타입의 예시 약물군과 명확히 매칭되지는 않았습니다. 실제 서비스에서는 OCR 결과를 약물 데이터베이스와 연결해 약 이름, 용량, 복용 시간을 더 정확히 확인하도록 확장할 수 있습니다.",
+          "약 봉투에서 일부 내용을 확인했지만, 현재 프로토타입의 예시 약물군과 명확히 매칭되지는 않았습니다. 복용 시간, 횟수, 주의사항은 약 봉투와 처방전을 함께 확인해주세요.",
       };
     }
 
     return {
       type: "unknown",
-      title: "약 봉투 글자 인식이 명확하지 않습니다.",
+      title: "약 봉투 내용을 명확히 확인하기 어렵습니다.",
       message:
-        "사진이 흐리거나 글자가 작으면 OCR 인식이 어려울 수 있습니다. 약 봉투를 밝은 곳에서 정면으로 촬영하고, 약 이름과 복용법이 잘 보이게 다시 첨부하면 더 좋습니다.",
+        "사진이 흐리거나 글자가 작으면 분석이 어려울 수 있습니다. 약 봉투를 밝은 곳에서 정면으로 촬영하고, 약 이름과 복용법이 잘 보이게 다시 첨부하면 더 좋습니다.",
     };
   };
 
@@ -262,7 +262,7 @@ export default function App() {
 
   const runMedicineOcr = async (imageUri, fileName) => {
     setIsPhotoAnalyzing(true);
-    setOcrProgress("OCR 준비 중입니다...");
+    setOcrProgress("약 봉투 사진을 분석하는 중입니다...");
     setMedicineOcrText("");
     setMedicinePhotoAnalysis("");
     setMedicineHintType("");
@@ -274,9 +274,7 @@ export default function App() {
         logger: (m) => {
           if (m.status === "recognizing text" && typeof m.progress === "number") {
             const percent = Math.round(m.progress * 100);
-            setOcrProgress(`약 봉투 글자를 읽는 중입니다... ${percent}%`);
-          } else if (m.status) {
-            setOcrProgress(`OCR 진행 중: ${m.status}`);
+            setOcrProgress(`약 봉투 사진을 분석하는 중입니다... ${percent}%`);
           }
         },
       });
@@ -287,16 +285,16 @@ export default function App() {
       setMedicineOcrText(extractedText.trim());
       setMedicineHintType(detected.type);
       setMedicinePhotoAnalysis(`${detected.title}\n${detected.message}`);
-      setOcrProgress("OCR 분석이 완료되었습니다.");
+      setOcrProgress("");
     } catch (error) {
       const detected = detectMedicineType("", fileName);
 
       setMedicineOcrText("");
       setMedicineHintType(detected.type);
       setMedicinePhotoAnalysis(
-        `OCR 분석 중 오류가 발생했습니다. 현재는 파일명과 입력 내용을 바탕으로 예시 분석을 제공합니다.\n${detected.message}`
+        `사진 분석 중 오류가 발생했습니다. 현재는 파일명과 입력 내용을 바탕으로 예시 분석을 제공합니다.\n${detected.message}`
       );
-      setOcrProgress("OCR 분석에 실패했습니다.");
+      setOcrProgress("");
     } finally {
       setIsPhotoAnalyzing(false);
     }
@@ -332,7 +330,7 @@ export default function App() {
     if (Platform.OS !== "web") {
       showPopup(
         "사진 기능 안내",
-        "약 봉투 사진 OCR 기능은 현재 웹 시연 버전에서 우선 지원됩니다."
+        "약 봉투 사진 분석 기능은 현재 웹 시연 버전에서 우선 지원됩니다."
       );
       return;
     }
@@ -403,7 +401,7 @@ export default function App() {
         disease:
           "직접 입력하거나, 음성 입력 버튼을 눌러 진료 중 들은 내용을 말씀해주시면 됩니다.",
         medicine:
-          "약 봉투 사진을 함께 첨부하면 OCR로 약 이름과 복용법 단서를 읽어 복약 설명에 반영할 수 있습니다.",
+          "약 봉투 사진을 함께 첨부하면 약 이름과 복용법 단서를 확인해 복약 설명에 반영할 수 있습니다.",
         caution:
           "음식, 운동, 생활습관에 대해 들은 주의사항도 함께 입력해주세요.",
         hospital:
@@ -483,12 +481,12 @@ export default function App() {
       } else if (medicinePhotoUri && !userInput.trim()) {
         setResult({
           summary:
-            "약 봉투 사진이 첨부되었습니다. OCR 결과를 바탕으로 약 이름과 복용법을 확인하려고 시도했습니다.",
+            "약 봉투 사진이 첨부되었습니다. 약 이름과 복용법 단서를 확인하려고 시도했습니다.",
           disease:
             "현재는 진료 내용이 입력되지 않아 정확한 병명은 알 수 없습니다. 병명이나 증상을 함께 입력하면 더 구체적인 설명을 받을 수 있습니다.",
           medicine:
             medicinePhotoAnalysis ||
-            "약 봉투 사진이 첨부되었습니다. 사진 속 약 이름, 용량, 복용 시간을 확인해 복약 설명에 반영할 수 있습니다.",
+            "약 봉투 사진이 첨부되었습니다. 약 봉투의 약 이름, 용량, 복용 시간을 확인해 복약 설명에 반영할 수 있습니다.",
           caution:
             "사진만으로 약을 임의로 판단하거나 복용법을 바꾸면 안 됩니다. 약 이름이 헷갈리거나 복용 시간을 잊은 경우에는 약국이나 병원에 확인하는 것이 안전합니다.",
           hospital:
@@ -518,9 +516,7 @@ export default function App() {
   const handleNotifyFamily = async () => {
     const photoLine =
       medicinePhotoAnalysis || medicineOcrText
-        ? `\n첨부 약 봉투 참고:\n${medicinePhotoAnalysis || ""}\n${
-            medicineOcrText ? `\nOCR로 읽은 글자:\n${medicineOcrText}` : ""
-          }\n`
+        ? `\n첨부 약 봉투 참고:\n${medicinePhotoAnalysis || ""}\n`
         : "";
 
     const message = `[진료 내용 요약]
@@ -672,7 +668,7 @@ ${photoLine}
 
               {isPhotoAnalyzing || ocrProgress ? (
                 <Text style={styles.photoAnalysisText}>
-                  {ocrProgress || "AI가 약 봉투 사진을 분석하는 중입니다... ⏳"}
+                  {ocrProgress || "약 봉투 사진을 분석하는 중입니다..."}
                 </Text>
               ) : null}
 
@@ -680,17 +676,6 @@ ${photoLine}
                 <Text style={styles.photoAnalysisText}>
                   {medicinePhotoAnalysis}
                 </Text>
-              ) : null}
-
-              {medicineOcrText ? (
-                <View style={styles.ocrTextBox}>
-                  <Text style={styles.ocrTextTitle}>OCR로 읽은 글자</Text>
-                  <Text style={styles.ocrText}>
-                    {medicineOcrText.length > 450
-                      ? `${medicineOcrText.slice(0, 450)}...`
-                      : medicineOcrText}
-                  </Text>
-                </View>
               ) : null}
             </View>
           ) : null}
@@ -1196,26 +1181,6 @@ const styles = StyleSheet.create({
     color: "#831843",
     fontWeight: "700",
     marginBottom: 8,
-  },
-
-  ocrTextBox: {
-    backgroundColor: "#FDF2F8",
-    borderRadius: 14,
-    padding: 12,
-    marginTop: 6,
-  },
-
-  ocrTextTitle: {
-    fontSize: 13,
-    fontWeight: "900",
-    color: "#9D174D",
-    marginBottom: 6,
-  },
-
-  ocrText: {
-    fontSize: 12,
-    lineHeight: 18,
-    color: "#4B5563",
   },
 
   mainButton: {
