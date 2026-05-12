@@ -280,13 +280,35 @@ export default function App() {
     }
   };
 
-  const handlePickMedicinePhoto = () => {
+  const processMedicinePhotoFile = (file) => {
+    if (!file) {
+      return;
+    }
+
+    const reader = new FileReader();
+
+    setMedicinePhotoName(file.name || "촬영한 약 봉투 사진");
+    setMedicinePhotoAnalysis("");
+    setMedicineOcrText("");
+    setMedicineHintType("");
+    setOcrProgress("");
+
+    reader.onload = () => {
+      const imageDataUrl = reader.result;
+      setMedicinePhotoUri(imageDataUrl);
+      runMedicineOcr(imageDataUrl, file.name || "captured_medicine_bag.jpg");
+    };
+
+    reader.readAsDataURL(file);
+  };
+
+  const openMedicinePhotoInput = (mode) => {
     setShowFamilyMessage(false);
     setAppNotice("");
 
     if (Platform.OS !== "web") {
       setAppNotice(
-        "약 사진 OCR 기능은 현재 웹 시연 버전에서 우선 지원됩니다."
+        "약 봉투 사진 OCR 기능은 현재 웹 시연 버전에서 우선 지원됩니다."
       );
       return;
     }
@@ -295,31 +317,24 @@ export default function App() {
     input.type = "file";
     input.accept = "image/*";
 
+    if (mode === "camera") {
+      input.capture = "environment";
+    }
+
     input.onchange = (event) => {
       const file = event.target.files && event.target.files[0];
-
-      if (!file) {
-        return;
-      }
-
-      const reader = new FileReader();
-
-      setMedicinePhotoName(file.name);
-      setMedicinePhotoAnalysis("");
-      setMedicineOcrText("");
-      setMedicineHintType("");
-      setOcrProgress("");
-
-      reader.onload = () => {
-        const imageDataUrl = reader.result;
-        setMedicinePhotoUri(imageDataUrl);
-        runMedicineOcr(imageDataUrl, file.name);
-      };
-
-      reader.readAsDataURL(file);
+      processMedicinePhotoFile(file);
     };
 
     input.click();
+  };
+
+  const handleSelectMedicinePhoto = () => {
+    openMedicinePhotoInput("gallery");
+  };
+
+  const handleCaptureMedicinePhoto = () => {
+    openMedicinePhotoInput("camera");
   };
 
   const handleRemoveMedicinePhoto = () => {
@@ -586,12 +601,23 @@ ${photoLine}
             <Text style={styles.voiceMessage}>{voiceMessage}</Text>
           ) : null}
 
-          <TouchableOpacity
-            style={styles.photoButton}
-            onPress={handlePickMedicinePhoto}
-          >
-            <Text style={styles.photoButtonText}>📷 약 봉투 사진 추가</Text>
-          </TouchableOpacity>
+          <Text style={styles.photoGuideText}>약 봉투가 있다면 함께 첨부해주세요.</Text>
+
+          <View style={styles.photoActionRow}>
+            <TouchableOpacity
+              style={styles.photoSelectButton}
+              onPress={handleSelectMedicinePhoto}
+            >
+              <Text style={styles.photoButtonText}>🖼️ 사진 선택</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.photoCaptureButton}
+              onPress={handleCaptureMedicinePhoto}
+            >
+              <Text style={styles.photoButtonText}>📷 촬영하기</Text>
+            </TouchableOpacity>
+          </View>
 
           {medicinePhotoUri ? (
             <View style={styles.photoPreviewBox}>
@@ -1051,19 +1077,42 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
 
-  photoButton: {
+  photoGuideText: {
+    fontSize: 13,
+    color: "#6B7280",
+    marginBottom: 8,
+    fontWeight: "700",
+  },
+
+  photoActionRow: {
+    flexDirection: "row",
+    gap: 10,
+    marginBottom: 14,
+  },
+
+  photoSelectButton: {
+    flex: 1,
     backgroundColor: "#FDF2F8",
-    paddingVertical: 15,
+    paddingVertical: 14,
     borderRadius: 16,
     alignItems: "center",
     borderWidth: 1.5,
     borderColor: "#F9A8D4",
-    marginBottom: 14,
+  },
+
+  photoCaptureButton: {
+    flex: 1,
+    backgroundColor: "#FCE7F3",
+    paddingVertical: 14,
+    borderRadius: 16,
+    alignItems: "center",
+    borderWidth: 1.5,
+    borderColor: "#F472B6",
   },
 
   photoButtonText: {
     color: "#9D174D",
-    fontSize: Platform.OS === "web" ? 16 : 18,
+    fontSize: Platform.OS === "web" ? 15 : 17,
     fontWeight: "900",
   },
 
