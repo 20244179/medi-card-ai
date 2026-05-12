@@ -428,7 +428,7 @@ ${photoLine}
             style={styles.photoButton}
             onPress={handlePickMedicinePhoto}
           >
-            <Text style={styles.photoButtonText}>📷 약 사진 추가</Text>
+            <Text style={styles.photoButtonText}>📷 사진 추가</Text>
           </TouchableOpacity>
 
           {medicinePhotoUri ? (
