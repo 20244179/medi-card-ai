@@ -123,6 +123,18 @@ export default function App() {
       .trim();
   };
 
+  const isMobileBrowser = () => {
+    if (Platform.OS !== "web" || typeof navigator === "undefined") {
+      return false;
+    }
+
+    const userAgent = navigator.userAgent || navigator.vendor || "";
+    const mobilePattern =
+      /android|iphone|ipad|ipod|windows phone|blackberry|mobile/i;
+
+    return mobilePattern.test(userAgent);
+  };
+
   const detectMedicineType = (ocrText, fileName = "") => {
     const combined = normalizeText(`${ocrText} ${fileName}`);
 
@@ -292,6 +304,7 @@ export default function App() {
     setMedicineOcrText("");
     setMedicineHintType("");
     setOcrProgress("");
+    setAppNotice("");
 
     reader.onload = () => {
       const imageDataUrl = reader.result;
@@ -309,6 +322,13 @@ export default function App() {
     if (Platform.OS !== "web") {
       setAppNotice(
         "약 봉투 사진 OCR 기능은 현재 웹 시연 버전에서 우선 지원됩니다."
+      );
+      return;
+    }
+
+    if (mode === "camera" && !isMobileBrowser()) {
+      setAppNotice(
+        "현재 기기에서는 카메라 촬영을 사용할 수 없습니다. 휴대폰에서 촬영하기를 이용하거나, 사진 선택으로 약 봉투 이미지를 첨부해주세요."
       );
       return;
     }
