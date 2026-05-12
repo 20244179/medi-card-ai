@@ -10,6 +10,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   Image,
+  Alert,
 } from "react-native";
 
 export default function App() {
@@ -121,6 +122,15 @@ export default function App() {
       .toLowerCase()
       .replace(/\s+/g, " ")
       .trim();
+  };
+
+  const showPopup = (title, message) => {
+    if (Platform.OS === "web" && typeof window !== "undefined") {
+      window.alert(`${title}\n\n${message}`);
+      return;
+    }
+
+    Alert.alert(title, message);
   };
 
   const isMobileBrowser = () => {
@@ -320,15 +330,17 @@ export default function App() {
     setAppNotice("");
 
     if (Platform.OS !== "web") {
-      setAppNotice(
+      showPopup(
+        "사진 기능 안내",
         "약 봉투 사진 OCR 기능은 현재 웹 시연 버전에서 우선 지원됩니다."
       );
       return;
     }
 
     if (mode === "camera" && !isMobileBrowser()) {
-      setAppNotice(
-        "현재 기기에서는 카메라 촬영을 사용할 수 없습니다. 휴대폰에서 촬영하기를 이용하거나, 사진 선택으로 약 봉투 이미지를 첨부해주세요."
+      showPopup(
+        "카메라 촬영 불가",
+        "현재 기기에서는 카메라 촬영을 사용할 수 없습니다.\n\n휴대폰에서 촬영하기를 이용하거나, 사진 선택으로 약 봉투 이미지를 첨부해주세요."
       );
       return;
     }
