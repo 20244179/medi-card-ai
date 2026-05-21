@@ -16,6 +16,7 @@ import {
   View,
 } from "react-native";
 import * as ImagePicker from "expo-image-picker";
+import { extractTextFromImage } from "expo-text-extractor";
 import {
   ExpoSpeechRecognitionModule,
   useSpeechRecognitionEvent,
@@ -54,6 +55,7 @@ export default function App() {
   const [medicinePhotoUri, setMedicinePhotoUri] = useState("");
   const [medicinePhotoName, setMedicinePhotoName] = useState("");
   const [medicinePhotoAnalysis, setMedicinePhotoAnalysis] = useState("");
+  const [medicineOcrText, setMedicineOcrText] = useState("");
   const [medicineHintType, setMedicineHintType] = useState("");
   const [isPhotoAnalyzing, setIsPhotoAnalyzing] = useState(false);
 
@@ -212,6 +214,7 @@ export default function App() {
       "diamicronmr",
       "diamicron mr",
       "dia micron",
+      "dia mi cron",
       "gliclazide",
       "gliclazide mr",
       "metformin",
@@ -310,6 +313,52 @@ export default function App() {
     };
   };
 
+  const extractTextSafely = async (imageUri) => {
+    try {
+      const ocrResult = await extractTextFromImage(imageUri);
+
+      if (Array.isArray(ocrResult)) {
+        return ocrResult
+          .map((item) => {
+            if (typeof item === "string") {
+              return item;
+            }
+
+            if (item?.text) {
+              return item.text;
+            }
+
+            if (item?.value) {
+              return item.value;
+            }
+
+            return "";
+          })
+          .join(" ")
+          .trim();
+      }
+
+      if (typeof ocrResult === "string") {
+        return ocrResult.trim();
+      }
+
+      if (ocrResult?.text) {
+        return String(ocrResult.text).trim();
+      }
+
+      if (ocrResult?.blocks && Array.isArray(ocrResult.blocks)) {
+        return ocrResult.blocks
+          .map((block) => block?.text || "")
+          .join(" ")
+          .trim();
+      }
+
+      return "";
+    } catch (error) {
+      return "";
+    }
+  };
+
   const startVoiceInput = async (mode) => {
     try {
       if (isListening) {
@@ -363,20 +412,34 @@ export default function App() {
     }
   };
 
-  const analyzeMedicinePhoto = (photoName = "") => {
+  const analyzeMedicinePhoto = async (imageUri, photoName = "") => {
     setIsPhotoAnalyzing(true);
     setMedicinePhotoAnalysis("");
     setMedicineHintType("");
+    setMedicineOcrText("");
     setAppNotice("");
 
-    setTimeout(() => {
+    try {
+      const extractedText = await extractTextSafely(imageUri);
+
+      setMedicineOcrText(extractedText);
+
+      const type = detectMedicineType(
+        `${extractedText} ${photoName} ${userInput}`
+      );
+      const analysis = getMedicineAnalysisText(type);
+
+      setMedicineHintType(type);
+      setMedicinePhotoAnalysis(`${analysis.title}\n${analysis.message}`);
+    } catch (error) {
       const type = detectMedicineType(`${photoName} ${userInput}`);
       const analysis = getMedicineAnalysisText(type);
 
       setMedicineHintType(type);
       setMedicinePhotoAnalysis(`${analysis.title}\n${analysis.message}`);
+    } finally {
       setIsPhotoAnalyzing(false);
-    }, 1000);
+    }
   };
 
   const processPickedImage = (asset, sourceLabel) => {
@@ -393,9 +456,10 @@ export default function App() {
     setMedicinePhotoName(name);
     setMedicineHintType("");
     setMedicinePhotoAnalysis("");
+    setMedicineOcrText("");
     setAppNotice("");
 
-    analyzeMedicinePhoto(name);
+    analyzeMedicinePhoto(asset.uri, name);
   };
 
   const handleSelectMedicinePhoto = async () => {
@@ -465,6 +529,7 @@ export default function App() {
     setMedicinePhotoUri("");
     setMedicinePhotoName("");
     setMedicinePhotoAnalysis("");
+    setMedicineOcrText("");
     setMedicineHintType("");
     setIsPhotoAnalyzing(false);
     setAppNotice("");
@@ -571,7 +636,9 @@ export default function App() {
     setAppNotice("");
 
     setTimeout(() => {
-      const typeFromText = detectMedicineType(userInput);
+      const typeFromText = detectMedicineType(
+        `${userInput} ${medicineOcrText} ${medicinePhotoName}`
+      );
       const finalType =
         medicineHintType && medicineHintType !== "unknown"
           ? medicineHintType
@@ -601,6 +668,7 @@ export default function App() {
     setMedicinePhotoUri("");
     setMedicinePhotoName("");
     setMedicinePhotoAnalysis("");
+    setMedicineOcrText("");
     setMedicineHintType("");
     setIsPhotoAnalyzing(false);
     setFamilyMessage("");
