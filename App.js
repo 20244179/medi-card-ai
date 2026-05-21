@@ -676,6 +676,35 @@ export default function App() {
     setScreen("input");
   };
 
+  const handleGoHomeFresh = () => {
+  if (isListening) {
+    try {
+      ExpoSpeechRecognitionModule.stop();
+    } catch (error) {}
+  }
+
+  setUserInput("");
+  setResult(defaultResult);
+  setIsLoading(false);
+  setIsListening(false);
+  setVoiceMessage("");
+  setLiveTranscript("");
+  setVoiceMode("");
+  speechBufferRef.current = "";
+
+  setMedicinePhotoUri("");
+  setMedicinePhotoName("");
+  setMedicinePhotoAnalysis("");
+  setMedicineOcrText("");
+  setMedicineHintType("");
+  setIsPhotoAnalyzing(false);
+
+  setFamilyMessage("");
+  setAppNotice("");
+
+  setScreen("home");
+};
+
   const buildFamilyMessage = () => {
     const photoLine = medicinePhotoAnalysis
       ? `\n첨부 약 봉투 참고:\n${medicinePhotoAnalysis}\n`
@@ -746,10 +775,10 @@ ${photoLine}
           <Text style={styles.topBarTitle}>{title}</Text>
           <Text style={styles.topBarSubtitle}>{APP_NAME}</Text>
         </View>
-
+      
         <TouchableOpacity
           style={styles.logoMini}
-          onPress={() => setScreen("home")}
+          onPress={handleGoHomeFresh}
           activeOpacity={0.8}
         >
           <Text style={styles.logoMiniText}>AI</Text>
