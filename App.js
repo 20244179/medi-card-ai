@@ -1,6 +1,7 @@
-import React, { useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   Alert,
+  BackHandler,
   Image,
   KeyboardAvoidingView,
   Platform,
@@ -58,6 +59,34 @@ export default function App() {
 
   const [familyMessage, setFamilyMessage] = useState("");
   const [appNotice, setAppNotice] = useState("");
+
+  useEffect(() => {
+    const handleAndroidBack = () => {
+      if (screen === "share") {
+        setScreen("result");
+        return true;
+      }
+
+      if (screen === "result") {
+        setScreen("input");
+        return true;
+      }
+
+      if (screen === "input") {
+        setScreen("home");
+        return true;
+      }
+
+      return false;
+    };
+
+    const subscription = BackHandler.addEventListener(
+      "hardwareBackPress",
+      handleAndroidBack
+    );
+
+    return () => subscription.remove();
+  }, [screen]);
 
   useSpeechRecognitionEvent("start", () => {
     setIsListening(true);
@@ -252,32 +281,32 @@ export default function App() {
   const getMedicineAnalysisText = (type) => {
     if (type === "diabetes") {
       return {
-        title: "당뇨약 또는 혈당 조절 관련 약으로 추정됩니다.",
+        title: "당뇨약 또는 혈당 조절 관련 단서가 확인되었습니다.",
         message:
-          "약 봉투에서 GLUPA, DiAMiCRON, metformin 등 당뇨약 또는 혈당 조절 관련 단서가 확인되었습니다. 당뇨약은 약마다 복용 시간이 다를 수 있으므로 약 봉투의 복용법을 꼭 확인해야 합니다. 식은땀, 손떨림, 심한 어지러움 같은 저혈당 증상이 생기면 주의가 필요합니다.",
+          "당뇨약은 약마다 복용 시간이 다를 수 있으므로 약 봉투의 복용법을 꼭 확인해야 합니다. 식은땀, 손떨림, 심한 어지러움 같은 저혈당 증상이 생기면 주의가 필요합니다.",
       };
     }
 
     if (type === "bloodPressure") {
       return {
-        title: "혈압약 관련 약으로 추정됩니다.",
+        title: "혈압약 관련 단서가 확인되었습니다.",
         message:
-          "약 봉투에서 혈압약 또는 고혈압 관련 단서가 확인되었습니다. 혈압약은 증상이 없어도 매일 같은 시간에 꾸준히 복용하는 것이 중요하며, 임의로 중단하면 혈압이 다시 올라갈 수 있습니다.",
+          "혈압약은 증상이 없어도 매일 같은 시간에 꾸준히 복용하는 것이 중요합니다. 임의로 중단하면 혈압이 다시 올라갈 수 있습니다.",
       };
     }
 
     if (type === "reflux") {
       return {
-        title: "위산 억제제 또는 역류성 식도염 관련 약으로 추정됩니다.",
+        title: "위산 억제제 또는 역류성 식도염 관련 단서가 확인되었습니다.",
         message:
-          "약 봉투에서 위산 억제제, 식전 복용, 역류성 식도염과 관련된 단서가 확인되었습니다. 위산을 줄여주는 약은 보통 식사 30분 전 공복 복용이 중요한 경우가 많습니다. 정확한 복용법은 약 봉투와 처방전을 함께 확인해야 합니다.",
+          "위산을 줄여주는 약은 보통 식사 30분 전 공복 복용이 중요한 경우가 많습니다. 정확한 복용법은 약 봉투와 처방전을 함께 확인해야 합니다.",
       };
     }
 
     return {
-      title: "약 봉투 사진이 첨부되었습니다.",
+      title: "사진을 분석할 수 없습니다.",
       message:
-        "약 봉투 사진을 확인 대상으로 등록했습니다. 현재 발표용 버전에서는 사진 첨부와 복약 설명 반영 흐름을 구현했으며, 실제 서비스에서는 OCR과 약물 데이터베이스를 연동해 약 이름, 용량, 복용 시간을 더 정확히 확인하도록 확장할 수 있습니다.",
+        "약 봉투에 적힌 글자들이 정확히 보이도록 촬영된 사진이 필요합니다.",
     };
   };
 
@@ -475,7 +504,7 @@ export default function App() {
     if (type === "reflux") {
       return {
         summary:
-          "역류성 식도염 또는 위산 관련 약으로 보이며, 위산 억제제는 식전 30분 복용 여부를 약 봉투에서 확인하는 것이 중요합니다.",
+          "역류성 식도염 또는 위산 관련 단서가 확인되며, 위산 억제제는 식전 30분 복용 여부를 약 봉투에서 확인하는 것이 중요합니다.",
         disease:
           "역류성 식도염은 위에 있는 음식물이나 위산이 식도로 거꾸로 올라와서 가슴이 쓰리거나 신물이 올라오는 병이에요. 약을 잘 드시고 생활습관을 조절하면 대부분 증상이 좋아질 수 있어요.",
         medicine:
@@ -650,9 +679,13 @@ ${photoLine}
           <Text style={styles.topBarSubtitle}>{APP_NAME}</Text>
         </View>
 
-        <View style={styles.logoMini}>
+        <TouchableOpacity
+          style={styles.logoMini}
+          onPress={() => setScreen("home")}
+          activeOpacity={0.8}
+        >
           <Text style={styles.logoMiniText}>AI</Text>
-        </View>
+        </TouchableOpacity>
       </View>
     );
   };
@@ -670,10 +703,9 @@ ${photoLine}
 
           <View style={styles.homeFeatureBox}>
             <Text style={styles.homeFeatureTitle}>이 앱으로 할 수 있는 일</Text>
-            <Text style={styles.homeFeatureText}>✓ 의사 선생님 말을 음성으로 적기</Text>
-            <Text style={styles.homeFeatureText}>✓ 약 봉투 사진을 함께 넣기</Text>
             <Text style={styles.homeFeatureText}>✓ 어려운 진료 내용을 쉽게 보기</Text>
             <Text style={styles.homeFeatureText}>✓ 가족에게 요약문 보내기</Text>
+            <Text style={styles.homeFeatureText}>✓ 약 알림 시간 설정하기</Text>
           </View>
 
           <TouchableOpacity
@@ -817,10 +849,6 @@ ${photoLine}
                     resizeMode="contain"
                   />
                 </View>
-
-                {medicinePhotoName ? (
-                  <Text style={styles.photoFileName}>{medicinePhotoName}</Text>
-                ) : null}
 
                 {isPhotoAnalyzing ? (
                   <Text style={styles.photoAnalysisText}>
@@ -1410,13 +1438,6 @@ const styles = StyleSheet.create({
   medicineImage: {
     width: "100%",
     height: "100%",
-  },
-
-  photoFileName: {
-    fontSize: 14,
-    color: "#6B7280",
-    marginBottom: 8,
-    fontWeight: "700",
   },
 
   photoAnalysisText: {
