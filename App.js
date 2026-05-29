@@ -32,15 +32,15 @@ const defaultMealTimes = {
 
 const defaultResult = {
   summary:
-    "진료 내용을 입력하거나 약 봉투 사진을 넣으면, 오늘 꼭 기억해야 할 핵심을 쉽게 정리해드립니다.",
+    "진료 내용이나 약 봉투 사진을 넣으면, 오늘 꼭 기억해야 할 내용을 쉽게 정리해드립니다.",
   disease:
-    "진료 내용을 입력하고 버튼을 누르면, 환자 눈높이에 맞춘 설명이 나옵니다.",
+    "진료 내용을 입력하면 병명과 증상을 쉬운 말로 풀어드립니다.",
   medicine:
-    "처방받은 약을 언제, 어떻게 먹어야 하는지 쉽게 정리해드립니다.",
+    "처방받은 약의 복용 시간과 주의할 점을 보기 쉽게 정리해드립니다.",
   caution:
-    "생활에서 조심해야 할 점을 환자 눈높이에 맞게 정리해드립니다.",
+    "집에서 조심해야 할 생활 수칙을 환자 눈높이에 맞게 안내합니다.",
   hospital:
-    "다시 병원에 가야 하는 상황이나 재진 일정을 정리해드립니다.",
+    "다시 병원에 가야 하는 상황과 재진이 필요한 경우를 정리합니다.",
 };
 
 export default function App() {
@@ -746,15 +746,15 @@ ${result.hospital}
           <Image source={LOGO} style={styles.homeLogoImage} resizeMode="contain" />
 
           <Text style={styles.homeMainText}>
-            진료실에서 들은 어려운 말을{"\n"}쉽게 정리해드려요
+            병원에서 들은 어려운 말,{"\n"}마이닥터가 쉽게 정리해드려요
           </Text>
 
           <View style={styles.homeFeatureBox}>
-            <Text style={styles.homeFeatureTitle}>이 앱으로 할 수 있는 일</Text>
-            <Text style={styles.homeFeatureText}>✓ 어려운 진료 내용을 쉽게 보기</Text>
-            <Text style={styles.homeFeatureText}>✓ 가족에게 요약문 보내기</Text>
-            <Text style={styles.homeFeatureText}>✓ 약 알림 시간 설정하기</Text>
-            <Text style={styles.homeFeatureText}>✓ 진료 기록 다시 확인하기</Text>
+            <Text style={styles.homeFeatureTitle}>마이닥터 기능</Text>
+            <Text style={styles.homeFeatureText}>✓ 어려운 진료 내용을 쉬운 말로 정리</Text>
+            <Text style={styles.homeFeatureText}>✓ 보호자에게 요약문 공유</Text>
+            <Text style={styles.homeFeatureText}>✓ 약 복용 시간 초안 만들기</Text>
+            <Text style={styles.homeFeatureText}>✓ 지난 진료 기록 다시 확인</Text>
           </View>
 
           <TouchableOpacity
@@ -764,7 +764,7 @@ ${result.hospital}
               setActiveTab("home");
             }}
           >
-            <Text style={styles.startButtonText}>새 진료 정리하기</Text>
+            <Text style={styles.startButtonText}>진료 내용 정리 시작</Text>
           </TouchableOpacity>
 
           <View style={styles.quickRow}>
@@ -806,7 +806,7 @@ ${result.hospital}
           <View style={styles.sectionCard}>
             <Text style={styles.sectionTitle}>진료 내용을 적어주세요</Text>
             <Text style={styles.sectionDescription}>
-              병원에서 들은 말이나 약 이름을 짧게 적어도 됩니다.
+              병원에서 들은 설명, 증상, 약 이름을 기억나는 만큼 적어주세요.
             </Text>
 
             <TextInput
@@ -838,7 +838,7 @@ ${result.hospital}
           <View style={styles.sectionCard}>
             <Text style={styles.sectionTitle}>약 봉투 사진을 넣어주세요</Text>
             <Text style={styles.sectionDescription}>
-              약 봉투 사진은 복약 설명과 알림 초안에 함께 표시됩니다.
+              약 이름이 기억나지 않아도 괜찮습니다. 약 봉투 사진을 함께 넣어주세요.
             </Text>
 
             <View style={styles.photoButtonRow}>
@@ -897,7 +897,7 @@ ${result.hospital}
             disabled={isLoading}
           >
             <Text style={styles.mainButtonText}>
-              {isLoading ? "진료 내용을 정리하고 있습니다." : "AI로 쉽게 정리하기"}
+              {isLoading ? "쉬운 설명 카드로 정리하고 있습니다." : "쉬운 설명 카드 만들기"}
             </Text>
           </TouchableOpacity>
 
@@ -962,7 +962,7 @@ ${result.hospital}
           <View style={styles.sectionCard}>
             <Text style={styles.sectionTitle}>AI가 알림 초안을 만들었습니다</Text>
             <Text style={styles.sectionDescription}>
-              약 봉투와 입력한 진료 내용을 바탕으로 준비했습니다. 복용 시간은 약 봉투와 한 번 더 확인해주세요.
+              약 봉투와 입력한 내용을 바탕으로 복용 시간 초안을 만들었습니다. 실제 복용 전에는 약 봉투와 한 번 더 확인해주세요.
             </Text>
 
             {reminderDrafts.map((draft) => (
@@ -981,7 +981,7 @@ ${result.hospital}
           <View style={styles.sectionCard}>
             <Text style={styles.sectionTitle}>식사 시간을 알려주세요</Text>
             <Text style={styles.sectionDescription}>
-              식전·식후 알림 시간을 자동으로 계산합니다.
+              식사 시간을 입력하면 식전·식후 복용 시간을 자동으로 계산합니다.
             </Text>
 
             <MealInput
@@ -1084,14 +1084,14 @@ ${result.hospital}
         <ScrollView contentContainerStyle={styles.screenBody}>
           <View style={styles.noticeBox}>
             <Text style={styles.noticeText}>
-              현재 버전에서는 알림 초안을 저장합니다. 실제 푸시 알림은 다음 단계에서 연결합니다.
+              현재 버전에서는 복용 알림 초안을 저장합니다. 실제 휴대폰 푸시 알림은 다음 단계에서 연결합니다.
             </Text>
           </View>
 
           <View style={styles.sectionCard}>
             <Text style={styles.sectionTitle}>기본 식사 시간</Text>
             <Text style={styles.sectionDescription}>
-              식사 시간이 바뀌면 여기에서 수정할 수 있습니다.
+              평소 식사 시간이 바뀌면 여기에서 다시 수정할 수 있습니다.
             </Text>
 
             <MealInput
@@ -1153,7 +1153,7 @@ ${result.hospital}
           <View style={styles.sectionCard}>
             <Text style={styles.sectionTitle}>기본 식사 시간</Text>
             <Text style={styles.sectionDescription}>
-              약 알림 초안을 만들 때 사용하는 기준 시간입니다.
+              약 알림 초안을 만들 때 사용하는 기본 식사 시간입니다.
             </Text>
 
             <MealInput
@@ -1182,7 +1182,7 @@ ${result.hospital}
           <View style={styles.sectionCard}>
             <Text style={styles.sectionTitle}>앱 정보</Text>
             <Text style={styles.sectionDescription}>
-              마이닥터는 진료 내용을 쉽게 정리하고, 가족 공유와 약 알림을 도와주는 AI 보조 앱입니다.
+              마이닥터는 진료 내용을 쉬운 말로 정리하고, 보호자 공유와 약 복용 시간 관리를 돕는 AI 보조 앱입니다.
             </Text>
           </View>
         </ScrollView>
@@ -1324,23 +1324,23 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   homeLogoImage: {
-    width: 175,
-    height: 175,
-    marginBottom: 4,
+    width: 150,
+    height: 150,
+    marginBottom: 2,
   },
   homeMainText: {
-    fontSize: 22,
-    lineHeight: 36,
+    fontSize: 21,
+    lineHeight: 34,
     fontWeight: "800",
     color: "#083A5A",
     textAlign: "center",
-    marginBottom: 24,
+    marginBottom: 22,
   },
   homeFeatureBox: {
     width: "100%",
     backgroundColor: "#FFFFFF",
     borderRadius: 28,
-    padding: 22,
+    padding: 20,
     borderWidth: 1.5,
     borderColor: "#D8E7F0",
     marginBottom: 22,
@@ -1366,7 +1366,7 @@ const styles = StyleSheet.create({
     marginBottom: 14,
   },
   startButtonText: {
-    fontSize: 23,
+    fontSize: 21,
     fontWeight: "800",
     color: "#FFFFFF",
   },
@@ -1468,8 +1468,8 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   sectionTitle: {
-    fontSize: 22,
-    lineHeight: 34,
+    fontSize: 21,
+    lineHeight: 33,
     fontWeight: "800",
     color: "#083A5A",
     marginBottom: 10,
@@ -1590,11 +1590,11 @@ const styles = StyleSheet.create({
     backgroundColor: "#8AA8B8",
   },
   mainButtonText: {
-    fontSize: 21,
+    fontSize: 20,
     fontWeight: "800",
     color: "#FFFFFF",
     textAlign: "center",
-    paddingHorizontal: 8,
+    paddingHorizontal: 10,
   },
   clearButton: {
     backgroundColor: "#FFFFFF",
@@ -1944,7 +1944,7 @@ const styles = StyleSheet.create({
     marginBottom: 2,
   },
   tabLabel: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: "800",
     color: "#6B7C8D",
   },
