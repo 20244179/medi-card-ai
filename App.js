@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from "react";
 import {
   Alert,
-  BackHandler,
   Image,
   KeyboardAvoidingView,
   Platform,
@@ -33,7 +32,7 @@ const FONT = {
 
 const STORAGE_KEYS = {
   records: "MYDOCTOR_RECORDS",
-  reminders: "MYDOCTOR_REMINDERS",
+  reminders: "MYDOCTOR_REMINDER_DRAFTS",
   mealTimes: "MYDOCTOR_MEAL_TIMES",
 };
 
@@ -90,49 +89,6 @@ export default function App() {
     loadStoredData();
   }, []);
 
-  useEffect(() => {
-    const handleBack = () => {
-      if (screen === "share") {
-        setScreen("result");
-        setActiveTab("home");
-        return true;
-      }
-
-      if (screen === "reminderSetup") {
-        setScreen("result");
-        setActiveTab("home");
-        return true;
-      }
-
-      if (screen === "result") {
-        setScreen("input");
-        setActiveTab("home");
-        return true;
-      }
-
-      if (screen === "input") {
-        setScreen("home");
-        setActiveTab("home");
-        return true;
-      }
-
-      if (activeTab !== "home") {
-        setActiveTab("home");
-        setScreen("home");
-        return true;
-      }
-
-      return false;
-    };
-
-    const subscription = BackHandler.addEventListener(
-      "hardwareBackPress",
-      handleBack
-    );
-
-    return () => subscription.remove();
-  }, [screen, activeTab]);
-
   if (!fontsLoaded) {
     return <View style={styles.loadingRoot} />;
   }
@@ -188,20 +144,24 @@ export default function App() {
       .trim();
   };
 
-  const detectMedicineType = (text = "") => {
-    const combined = normalizeText(text);
-
-    const compact = combined
+  const compactText = (text) => {
+    return normalizeText(text)
       .replace(/[\s\-_().,[\]{}<>]/g, "")
       .replace(/mg/g, "")
       .replace(/정/g, "")
       .replace(/정제/g, "")
-      .replace(/서방/g, "");
+      .replace(/서방/g, "")
+      .replace(/필름코팅/g, "");
+  };
+
+  const detectMedicineType = (text = "") => {
+    const combined = normalizeText(text);
+    const compact = compactText(text);
 
     const includesAny = (keywords) =>
       keywords.some((word) => {
         const normal = normalizeText(word);
-        const compactWord = normal.replace(/[\s\-_().,[\]{}<>]/g, "");
+        const compactWord = compactText(word);
         return combined.includes(normal) || compact.includes(compactWord);
       });
 
@@ -210,18 +170,26 @@ export default function App() {
       "당뇨병",
       "혈당",
       "혈당조절",
+      "혈당 조절",
       "인슐린",
       "메트포르민",
       "다이아벡스",
       "글루파",
+      "글루파850",
       "glupa",
       "glupa850",
       "다이아미크론",
       "디아미크론",
+      "다이아미크론엠알",
+      "디아미크론엠알",
       "diamicron",
       "diamicronmr",
+      "diamicron mr",
       "gliclazide",
+      "gliclazide mr",
       "metformin",
+      "insulin",
+      "glucose",
       "diabetes",
     ];
 
@@ -236,25 +204,34 @@ export default function App() {
       "amlodipine",
       "losartan",
       "valsartan",
+      "telmisartan",
       "hypertension",
+      "blood pressure",
     ];
 
     const refluxKeywords = [
       "역류",
       "속쓰림",
+      "속 쓰림",
       "식도염",
       "위산",
+      "위산분비억제",
+      "ppi",
       "오메프라졸",
       "판토프라졸",
       "란소프라졸",
+      "라베프라졸",
       "omeprazole",
       "pantoprazole",
+      "lansoprazole",
+      "rabeprazole",
       "reflux",
     ];
 
     if (includesAny(diabetesKeywords)) return "diabetes";
     if (includesAny(bpKeywords)) return "bloodPressure";
     if (includesAny(refluxKeywords)) return "reflux";
+
     return "unknown";
   };
 
@@ -286,7 +263,7 @@ export default function App() {
     return {
       title: "약 봉투 사진이 첨부되었습니다.",
       message:
-        "현재 안정화 버전에서는 글자 자동 인식은 잠시 꺼두었습니다.\n진료 내용을 함께 입력하면 더 정확히 정리할 수 있습니다.",
+        "약 이름과 복용 시간이 잘 보이도록 촬영된 사진이면 복약 설명에 도움이 됩니다.\n진료 내용을 함께 입력하면 더 정확히 정리할 수 있습니다.",
     };
   };
 
@@ -389,7 +366,7 @@ export default function App() {
         const computed = addMinutesToTime(baseTime, draft.offsetMinutes);
 
         plans.push({
-          id: `${draft.id}-${mealKey}`,
+          id: `${draft.id}-${mealKey}-${Date.now()}`,
           label: `${draft.label}${suffix}`,
           timeText: computed.text,
           hour: computed.hour,
@@ -637,7 +614,7 @@ ${result.medicine}
 3. 무엇을 조심해야 하나요?
 ${result.caution}
 
-4. 언제 병원에 다시 가야 하나요?
+4. 언제 다시 병원에 가야 하나요?
 ${result.hospital}
 ${photoLine}
 ※ 이 내용은 진료 내용을 쉽게 정리한 보조 설명이며, 정확한 내용은 처방전과 의료진 설명을 함께 확인해주세요.`;
@@ -668,7 +645,7 @@ ${photoLine}
 
     Alert.alert(
       "약 알림 초안 저장",
-      "안정화 버전에서는 실제 푸시 알림 대신 알림 초안을 저장합니다.\n앱이 정상 실행되면 실제 푸시 알림을 다시 연결하겠습니다."
+      "복용 시간 초안이 저장되었습니다.\n실제 푸시 알림은 다음 단계에서 연결합니다."
     );
 
     setActiveTab("reminders");
@@ -781,6 +758,7 @@ ${photoLine}
       <View style={styles.bottomTabs}>
         {tabs.map((tab) => {
           const focused = activeTab === tab.key;
+
           return (
             <TouchableOpacity
               key={tab.key}
@@ -874,12 +852,6 @@ ${photoLine}
         {renderTopBar("진료 내용 입력", "home")}
 
         <ScrollView contentContainerStyle={styles.screenBody}>
-          <View style={styles.noticeBox}>
-            <Text style={styles.noticeText}>
-              안정화 버전에서는 음성 입력과 실제 OCR을 잠시 꺼두었습니다. 앱이 정상 실행되면 다시 연결하겠습니다.
-            </Text>
-          </View>
-
           <View style={styles.stepBadge}>
             <Text style={styles.stepBadgeText} numberOfLines={1}>
               1단계
@@ -900,6 +872,7 @@ ${photoLine}
               onChangeText={(text) => {
                 setUserInput(text);
                 const type = detectMedicineType(`${text} ${medicinePhotoName}`);
+
                 if (type !== "unknown") {
                   const analysis = getMedicineAnalysisText(type);
                   setMedicineHintType(type);
@@ -1157,6 +1130,7 @@ ${photoLine}
                       다시 보기
                     </Text>
                   </TouchableOpacity>
+
                   <TouchableOpacity
                     style={styles.recordDeleteButton}
                     onPress={() => deleteRecord(record.id)}
@@ -1182,7 +1156,7 @@ ${photoLine}
         <ScrollView contentContainerStyle={styles.screenBody}>
           <View style={styles.noticeBox}>
             <Text style={styles.noticeText}>
-              현재 안정화 버전에서는 실제 푸시 알림 대신 알림 초안을 저장합니다. 앱이 안정적으로 켜지는 것을 확인한 뒤 실제 알림을 다시 연결합니다.
+              현재 버전에서는 알림 초안을 저장합니다. 실제 푸시 알림은 다음 단계에서 연결합니다.
             </Text>
           </View>
 
@@ -1433,10 +1407,6 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     borderColor: "#D8E7F0",
     marginBottom: 22,
-    shadowColor: "#0B3A59",
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 6 },
     elevation: 3,
   },
   homeFeatureTitle: {
@@ -1466,7 +1436,6 @@ const styles = StyleSheet.create({
   },
   quickRow: {
     flexDirection: "row",
-    gap: 10,
     width: "100%",
   },
   quickButton: {
@@ -1477,6 +1446,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     borderWidth: 1.8,
     borderColor: "#BCD7E5",
+    marginHorizontal: 5,
   },
   quickButtonText: {
     fontFamily: FONT.koExtraBold,
@@ -1590,7 +1560,6 @@ const styles = StyleSheet.create({
   },
   photoButtonRow: {
     flexDirection: "row",
-    gap: 10,
     marginBottom: 16,
   },
   photoButton: {
@@ -1602,6 +1571,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     borderWidth: 1.8,
     borderColor: "#8FC7DE",
+    marginHorizontal: 5,
   },
   photoButtonText: {
     fontFamily: FONT.koExtraBold,
@@ -1755,7 +1725,6 @@ const styles = StyleSheet.create({
   },
   actionPanel: {
     flexDirection: "row",
-    gap: 10,
     marginTop: 8,
     marginBottom: 14,
   },
@@ -1765,6 +1734,7 @@ const styles = StyleSheet.create({
     borderRadius: 22,
     paddingVertical: 18,
     alignItems: "center",
+    marginRight: 5,
   },
   familyButtonLarge: {
     marginTop: 18,
@@ -1786,6 +1756,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     borderWidth: 1.8,
     borderColor: "#BCD7E5",
+    marginLeft: 5,
   },
   alarmButtonText: {
     fontFamily: FONT.koExtraBold,
@@ -1899,7 +1870,6 @@ const styles = StyleSheet.create({
   },
   recordButtonRow: {
     flexDirection: "row",
-    gap: 10,
   },
   recordOpenButton: {
     flex: 1,
@@ -1907,6 +1877,7 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     paddingVertical: 14,
     alignItems: "center",
+    marginRight: 5,
   },
   recordOpenText: {
     fontFamily: FONT.koExtraBold,
@@ -1921,6 +1892,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     borderWidth: 1.5,
     borderColor: "#FECACA",
+    marginLeft: 5,
   },
   recordDeleteText: {
     fontFamily: FONT.koExtraBold,
