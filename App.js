@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   Alert,
   BackHandler,
@@ -18,11 +18,6 @@ import {
 import * as ImagePicker from "expo-image-picker";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useFonts } from "expo-font";
-import { extractTextFromImage } from "expo-text-extractor";
-import {
-  ExpoSpeechRecognitionModule,
-  useSpeechRecognitionEvent,
-} from "expo-speech-recognition";
 
 const LOGO = require("./assets/mydoctor-logo.png");
 
@@ -38,7 +33,7 @@ const FONT = {
 
 const STORAGE_KEYS = {
   records: "MYDOCTOR_RECORDS",
-  reminders: "MYDOCTOR_REMINDER_DRAFTS",
+  reminders: "MYDOCTOR_REMINDERS",
   mealTimes: "MYDOCTOR_MEAL_TIMES",
 };
 
@@ -79,18 +74,10 @@ export default function App() {
   const [result, setResult] = useState(defaultResult);
   const [isLoading, setIsLoading] = useState(false);
 
-  const [isListening, setIsListening] = useState(false);
-  const [voiceMessage, setVoiceMessage] = useState("");
-  const [liveTranscript, setLiveTranscript] = useState("");
-  const [voiceMode, setVoiceMode] = useState("");
-  const speechBufferRef = useRef("");
-
   const [medicinePhotoUri, setMedicinePhotoUri] = useState("");
   const [medicinePhotoName, setMedicinePhotoName] = useState("");
   const [medicinePhotoAnalysis, setMedicinePhotoAnalysis] = useState("");
-  const [medicineOcrText, setMedicineOcrText] = useState("");
   const [medicineHintType, setMedicineHintType] = useState("unknown");
-  const [isPhotoAnalyzing, setIsPhotoAnalyzing] = useState(false);
 
   const [records, setRecords] = useState([]);
   const [reminders, setReminders] = useState([]);
@@ -146,60 +133,6 @@ export default function App() {
     return () => subscription.remove();
   }, [screen, activeTab]);
 
-  useSpeechRecognitionEvent("start", () => {
-    setIsListening(true);
-    setVoiceMessage("듣는 중입니다. 천천히 말씀해주세요.");
-    setLiveTranscript("");
-    speechBufferRef.current = "";
-  });
-
-  useSpeechRecognitionEvent("result", (event) => {
-    const transcript = event.results?.[0]?.transcript || "";
-
-    if (transcript.trim()) {
-      speechBufferRef.current = transcript.trim();
-      setLiveTranscript(transcript.trim());
-      setVoiceMessage("말씀을 듣고 있습니다. 다 말한 뒤 듣기 중지를 눌러주세요.");
-    }
-  });
-
-  useSpeechRecognitionEvent("end", () => {
-    const transcript = speechBufferRef.current.trim();
-
-    if (transcript) {
-      setUserInput((prev) => {
-        if (voiceMode === "replace") return transcript;
-        if (prev.trim()) return `${prev.trim()} ${transcript}`;
-        return transcript;
-      });
-
-      setVoiceMessage("음성 입력이 입력창에 반영되었습니다.");
-    } else {
-      setVoiceMessage("인식된 문장이 없습니다. 다시 말씀해주세요.");
-    }
-
-    setIsListening(false);
-    setLiveTranscript("");
-    setVoiceMode("");
-    speechBufferRef.current = "";
-  });
-
-  useSpeechRecognitionEvent("error", (event) => {
-    setIsListening(false);
-    setLiveTranscript("");
-
-    if (event.error === "not-allowed") {
-      Alert.alert(
-        "마이크 권한 필요",
-        "음성 입력을 사용하려면 마이크 권한을 허용해주세요."
-      );
-      setVoiceMessage("마이크 권한이 허용되지 않았습니다.");
-      return;
-    }
-
-    setVoiceMessage("음성이 잘 들리지 않았습니다. 조용한 곳에서 다시 말씀해주세요.");
-  });
-
   if (!fontsLoaded) {
     return <View style={styles.loadingRoot} />;
   }
@@ -210,8 +143,14 @@ export default function App() {
       const reminderText = await AsyncStorage.getItem(STORAGE_KEYS.reminders);
       const mealText = await AsyncStorage.getItem(STORAGE_KEYS.mealTimes);
 
-      if (recordText) setRecords(JSON.parse(recordText));
-      if (reminderText) setReminders(JSON.parse(reminderText));
+      if (recordText) {
+        setRecords(JSON.parse(recordText));
+      }
+
+      if (reminderText) {
+        setReminders(JSON.parse(reminderText));
+      }
+
       if (mealText) {
         setMealTimes({
           ...defaultMealTimes,
@@ -249,24 +188,20 @@ export default function App() {
       .trim();
   };
 
-  const compactText = (text) => {
-    return normalizeText(text)
+  const detectMedicineType = (text = "") => {
+    const combined = normalizeText(text);
+
+    const compact = combined
       .replace(/[\s\-_().,[\]{}<>]/g, "")
       .replace(/mg/g, "")
       .replace(/정/g, "")
       .replace(/정제/g, "")
-      .replace(/서방/g, "")
-      .replace(/필름코팅/g, "");
-  };
-
-  const detectMedicineType = (text = "") => {
-    const combined = normalizeText(text);
-    const compact = compactText(text);
+      .replace(/서방/g, "");
 
     const includesAny = (keywords) =>
       keywords.some((word) => {
         const normal = normalizeText(word);
-        const compactWord = compactText(word);
+        const compactWord = normal.replace(/[\s\-_().,[\]{}<>]/g, "");
         return combined.includes(normal) || compact.includes(compactWord);
       });
 
@@ -275,26 +210,18 @@ export default function App() {
       "당뇨병",
       "혈당",
       "혈당조절",
-      "혈당 조절",
       "인슐린",
       "메트포르민",
       "다이아벡스",
       "글루파",
-      "글루파850",
       "glupa",
       "glupa850",
       "다이아미크론",
       "디아미크론",
-      "다이아미크론엠알",
-      "디아미크론엠알",
       "diamicron",
       "diamicronmr",
-      "diamicron mr",
       "gliclazide",
-      "gliclazide mr",
       "metformin",
-      "insulin",
-      "glucose",
       "diabetes",
     ];
 
@@ -309,34 +236,25 @@ export default function App() {
       "amlodipine",
       "losartan",
       "valsartan",
-      "telmisartan",
       "hypertension",
-      "blood pressure",
     ];
 
     const refluxKeywords = [
       "역류",
       "속쓰림",
-      "속 쓰림",
       "식도염",
       "위산",
-      "위산분비억제",
-      "ppi",
       "오메프라졸",
       "판토프라졸",
       "란소프라졸",
-      "라베프라졸",
       "omeprazole",
       "pantoprazole",
-      "lansoprazole",
-      "rabeprazole",
       "reflux",
     ];
 
     if (includesAny(diabetesKeywords)) return "diabetes";
     if (includesAny(bpKeywords)) return "bloodPressure";
     if (includesAny(refluxKeywords)) return "reflux";
-
     return "unknown";
   };
 
@@ -366,38 +284,10 @@ export default function App() {
     }
 
     return {
-      title: "약 봉투 글자를 확인하기 어렵습니다.",
+      title: "약 봉투 사진이 첨부되었습니다.",
       message:
-        "약 이름과 복용 시간이 잘 보이도록 다시 촬영해주세요.\n또는 진료 내용을 직접 입력해주세요.",
+        "현재 안정화 버전에서는 글자 자동 인식은 잠시 꺼두었습니다.\n진료 내용을 함께 입력하면 더 정확히 정리할 수 있습니다.",
     };
-  };
-
-  const extractTextSafely = async (imageUri) => {
-    try {
-      const ocrResult = await extractTextFromImage(imageUri);
-
-      if (Array.isArray(ocrResult)) {
-        return ocrResult
-          .map((item) => {
-            if (typeof item === "string") return item;
-            if (item?.text) return item.text;
-            if (item?.value) return item.value;
-            return "";
-          })
-          .join(" ")
-          .trim();
-      }
-
-      if (typeof ocrResult === "string") return ocrResult.trim();
-      if (ocrResult?.text) return String(ocrResult.text).trim();
-      if (ocrResult?.blocks && Array.isArray(ocrResult.blocks)) {
-        return ocrResult.blocks.map((block) => block?.text || "").join(" ");
-      }
-
-      return "";
-    } catch (error) {
-      return "";
-    }
   };
 
   const generateReminderDrafts = (type, text = "") => {
@@ -519,81 +409,6 @@ export default function App() {
     return plans;
   };
 
-  const startVoiceInput = async (mode) => {
-    try {
-      if (isListening) {
-        ExpoSpeechRecognitionModule.stop();
-        return;
-      }
-
-      const permissionResult =
-        await ExpoSpeechRecognitionModule.requestPermissionsAsync();
-
-      if (!permissionResult.granted) {
-        Alert.alert(
-          "마이크 권한 필요",
-          "음성 입력을 사용하려면 마이크 권한을 허용해주세요."
-        );
-        return;
-      }
-
-      if (mode === "replace") setUserInput("");
-
-      setVoiceMode(mode);
-      setVoiceMessage("");
-      setLiveTranscript("");
-      speechBufferRef.current = "";
-
-      ExpoSpeechRecognitionModule.start({
-        lang: "ko-KR",
-        interimResults: true,
-        continuous: false,
-        maxAlternatives: 1,
-        requiresOnDeviceRecognition: false,
-      });
-    } catch (error) {
-      setIsListening(false);
-      setVoiceMessage("음성 입력을 시작할 수 없습니다. 다시 시도해주세요.");
-    }
-  };
-
-  const stopVoiceInput = () => {
-    try {
-      ExpoSpeechRecognitionModule.stop();
-    } catch (error) {
-      setIsListening(false);
-      setVoiceMessage("음성 입력을 종료했습니다.");
-    }
-  };
-
-  const analyzeMedicinePhoto = async (imageUri, photoName = "") => {
-    setIsPhotoAnalyzing(true);
-    setMedicinePhotoAnalysis("");
-    setMedicineHintType("unknown");
-    setMedicineOcrText("");
-
-    try {
-      const extractedText = await extractTextSafely(imageUri);
-      setMedicineOcrText(extractedText);
-
-      const type = detectMedicineType(`${extractedText} ${photoName} ${userInput}`);
-      const analysis = getMedicineAnalysisText(type);
-
-      setMedicineHintType(type);
-      setMedicinePhotoAnalysis(`${analysis.title}\n${analysis.message}`);
-      setReminderDrafts(generateReminderDrafts(type, extractedText));
-    } catch (error) {
-      const type = detectMedicineType(`${photoName} ${userInput}`);
-      const analysis = getMedicineAnalysisText(type);
-
-      setMedicineHintType(type);
-      setMedicinePhotoAnalysis(`${analysis.title}\n${analysis.message}`);
-      setReminderDrafts(generateReminderDrafts(type, `${photoName} ${userInput}`));
-    } finally {
-      setIsPhotoAnalyzing(false);
-    }
-  };
-
   const processPickedImage = (asset, sourceLabel) => {
     if (!asset?.uri) return;
 
@@ -604,11 +419,13 @@ export default function App() {
 
     setMedicinePhotoUri(asset.uri);
     setMedicinePhotoName(name);
-    setMedicineHintType("unknown");
-    setMedicinePhotoAnalysis("");
-    setMedicineOcrText("");
 
-    analyzeMedicinePhoto(asset.uri, name);
+    const detectedType = detectMedicineType(`${name} ${userInput}`);
+    const analysis = getMedicineAnalysisText(detectedType);
+
+    setMedicineHintType(detectedType);
+    setMedicinePhotoAnalysis(`${analysis.title}\n${analysis.message}`);
+    setReminderDrafts(generateReminderDrafts(detectedType, `${name} ${userInput}`));
   };
 
   const handleSelectMedicinePhoto = async () => {
@@ -659,7 +476,6 @@ export default function App() {
     setMedicinePhotoUri("");
     setMedicinePhotoName("");
     setMedicinePhotoAnalysis("");
-    setMedicineOcrText("");
     setMedicineHintType("unknown");
     setReminderDrafts([]);
   };
@@ -731,12 +547,8 @@ export default function App() {
         "입력하신 진료 내용을 바탕으로 정리했습니다.\n정확한 내용은 처방전과 의료진 설명을 함께 확인해주세요.",
       disease:
         "입력하신 진료 내용을 바탕으로 보면, 현재 증상과 의사 선생님의 설명을 쉽게 정리해 이해하는 것이 중요합니다. 정확한 진단명은 의료진의 설명과 처방전을 함께 확인해주세요.",
-      medicine: medicinePhotoUri
-        ? `약 봉투 사진이 함께 첨부되었습니다.\n${
-            medicinePhotoAnalysis ||
-            "약 이름과 복용 시간을 확인한 뒤, 처방받은 용법과 용량에 맞춰 복용해야 합니다."
-          }`
-        : "약은 처방받은 용법과 용량에 맞춰 복용해야 합니다. 식전, 식후, 자기 전 등 복용 시간이 다를 수 있으므로 약 봉투나 처방전을 꼭 확인해주세요.",
+      medicine:
+        "약은 처방받은 용법과 용량에 맞춰 복용해야 합니다. 식전, 식후, 자기 전 등 복용 시간이 다를 수 있으므로 약 봉투나 처방전을 꼭 확인해주세요.",
       caution:
         "생활습관 관리나 음식 조절에 대한 설명을 들었다면 잘 지키는 것이 좋습니다. 증상이 갑자기 심해지거나 평소와 다른 증상이 생기면 병원에 문의해주세요.",
       hospital:
@@ -753,22 +565,19 @@ export default function App() {
     setIsLoading(true);
 
     setTimeout(() => {
-      const typeFromText = detectMedicineType(
-        `${userInput} ${medicineOcrText} ${medicinePhotoName}`
-      );
       const finalType =
-        medicineHintType && medicineHintType !== "unknown"
+        medicineHintType !== "unknown"
           ? medicineHintType
-          : typeFromText;
+          : detectMedicineType(`${userInput} ${medicinePhotoName}`);
 
       const nextResult = buildResultByType(finalType);
 
       setResult(nextResult);
-      setReminderDrafts(generateReminderDrafts(finalType, medicineOcrText));
+      setReminderDrafts(generateReminderDrafts(finalType, userInput));
       setIsLoading(false);
       setScreen("result");
       setActiveTab("home");
-    }, 700);
+    }, 600);
   };
 
   const saveCurrentRecord = async () => {
@@ -779,7 +588,6 @@ export default function App() {
       result,
       medicinePhotoUri,
       medicinePhotoName,
-      medicineOcrText,
       medicinePhotoAnalysis,
       medicineHintType,
     };
@@ -796,11 +604,10 @@ export default function App() {
     setResult(record.result || defaultResult);
     setMedicinePhotoUri(record.medicinePhotoUri || "");
     setMedicinePhotoName(record.medicinePhotoName || "");
-    setMedicineOcrText(record.medicineOcrText || "");
     setMedicinePhotoAnalysis(record.medicinePhotoAnalysis || "");
     setMedicineHintType(record.medicineHintType || "unknown");
     setReminderDrafts(
-      generateReminderDrafts(record.medicineHintType, record.medicineOcrText || "")
+      generateReminderDrafts(record.medicineHintType, record.input || "")
     );
     setActiveTab("home");
     setScreen("result");
@@ -830,7 +637,7 @@ ${result.medicine}
 3. 무엇을 조심해야 하나요?
 ${result.caution}
 
-4. 언제 다시 병원에 가야 하나요?
+4. 언제 병원에 다시 가야 하나요?
 ${result.hospital}
 ${photoLine}
 ※ 이 내용은 진료 내용을 쉽게 정리한 보조 설명이며, 정확한 내용은 처방전과 의료진 설명을 함께 확인해주세요.`;
@@ -861,7 +668,7 @@ ${photoLine}
 
     Alert.alert(
       "약 알림 초안 저장",
-      "복용 시간 초안이 저장되었습니다.\n실제 푸시 알림은 다음 단계에서 연결합니다."
+      "안정화 버전에서는 실제 푸시 알림 대신 알림 초안을 저장합니다.\n앱이 정상 실행되면 실제 푸시 알림을 다시 연결하겠습니다."
     );
 
     setActiveTab("reminders");
@@ -874,24 +681,12 @@ ${photoLine}
   };
 
   const handleClear = () => {
-    if (isListening) {
-      try {
-        ExpoSpeechRecognitionModule.stop();
-      } catch (error) {}
-    }
-
     setUserInput("");
     setResult(defaultResult);
     setIsLoading(false);
-    setIsListening(false);
-    setVoiceMessage("");
-    setLiveTranscript("");
-    setVoiceMode("");
-    speechBufferRef.current = "";
     setMedicinePhotoUri("");
     setMedicinePhotoName("");
     setMedicinePhotoAnalysis("");
-    setMedicineOcrText("");
     setMedicineHintType("unknown");
     setReminderDrafts([]);
     setFamilyMessage("");
@@ -901,7 +696,16 @@ ${photoLine}
   };
 
   const resetAllAndGoHome = () => {
-    handleClear();
+    setUserInput("");
+    setResult(defaultResult);
+    setIsLoading(false);
+    setMedicinePhotoUri("");
+    setMedicinePhotoName("");
+    setMedicinePhotoAnalysis("");
+    setMedicineHintType("unknown");
+    setReminderDrafts([]);
+    setFamilyMessage("");
+    setEditingRecord(null);
     setScreen("home");
     setActiveTab("home");
   };
@@ -910,9 +714,9 @@ ${photoLine}
     const finalType =
       medicineHintType !== "unknown"
         ? medicineHintType
-        : detectMedicineType(`${userInput} ${medicineOcrText} ${medicinePhotoName}`);
+        : detectMedicineType(`${userInput} ${medicinePhotoName}`);
 
-    const drafts = generateReminderDrafts(finalType, medicineOcrText);
+    const drafts = generateReminderDrafts(finalType, userInput);
     setReminderDrafts(drafts);
     setScreen("reminderSetup");
     setActiveTab("home");
@@ -1070,6 +874,12 @@ ${photoLine}
         {renderTopBar("진료 내용 입력", "home")}
 
         <ScrollView contentContainerStyle={styles.screenBody}>
+          <View style={styles.noticeBox}>
+            <Text style={styles.noticeText}>
+              안정화 버전에서는 음성 입력과 실제 OCR을 잠시 꺼두었습니다. 앱이 정상 실행되면 다시 연결하겠습니다.
+            </Text>
+          </View>
+
           <View style={styles.stepBadge}>
             <Text style={styles.stepBadgeText} numberOfLines={1}>
               1단계
@@ -1079,7 +889,7 @@ ${photoLine}
           <View style={styles.sectionCard}>
             <Text style={styles.sectionTitle}>진료 내용을 적어주세요</Text>
             <Text style={styles.sectionDescription}>
-              직접 입력하거나 음성 입력을 사용할 수 있습니다.
+              병원에서 들은 말이나 약 이름을 짧게 적어도 됩니다.
             </Text>
 
             <TextInput
@@ -1089,7 +899,7 @@ ${photoLine}
               value={userInput}
               onChangeText={(text) => {
                 setUserInput(text);
-                const type = detectMedicineType(`${text} ${medicineOcrText}`);
+                const type = detectMedicineType(`${text} ${medicinePhotoName}`);
                 if (type !== "unknown") {
                   const analysis = getMedicineAnalysisText(type);
                   setMedicineHintType(type);
@@ -1100,71 +910,6 @@ ${photoLine}
               placeholder="예: 당뇨 때문에 병원에 갔고 약을 받았어요. 식후에 먹으라고 하셨어요."
               placeholderTextColor="#6B7C8D"
             />
-
-            <View style={styles.voicePanel}>
-              <Text style={styles.voiceTitle} numberOfLines={1}>
-                음성으로 입력하기
-              </Text>
-              <Text style={styles.voiceDescription}>
-                천천히 말씀하셔도 됩니다. 다 말한 뒤에는 듣기 중지를 눌러주세요.
-              </Text>
-
-              {!isListening ? (
-                <View style={styles.voiceButtonRow}>
-                  <TouchableOpacity
-                    style={styles.voiceStartButton}
-                    onPress={() => startVoiceInput("append")}
-                  >
-                    <Text style={styles.voiceStartButtonText} numberOfLines={1}>
-                      🎤 이어 말하기
-                    </Text>
-                    <Text style={styles.voiceSubText} numberOfLines={1}>
-                      기존 내용 뒤에 추가
-                    </Text>
-                  </TouchableOpacity>
-
-                  <TouchableOpacity
-                    style={styles.voiceReplaceButton}
-                    onPress={() => startVoiceInput("replace")}
-                  >
-                    <Text style={styles.voiceReplaceButtonText} numberOfLines={1}>
-                      ↻ 처음부터 말하기
-                    </Text>
-                    <Text style={styles.voiceSubText} numberOfLines={1}>
-                      입력창을 비우고 시작
-                    </Text>
-                  </TouchableOpacity>
-                </View>
-              ) : (
-                <View style={styles.recordingBox}>
-                  <View style={styles.recordingTopRow}>
-                    <View style={styles.recordDot} />
-                    <Text style={styles.recordingTitle} numberOfLines={1}>
-                      듣는 중입니다
-                    </Text>
-                  </View>
-
-                  {liveTranscript ? (
-                    <View style={styles.transcriptBox}>
-                      <Text style={styles.transcriptLabel} numberOfLines={1}>
-                        지금 듣고 있는 말
-                      </Text>
-                      <Text style={styles.transcriptText}>{liveTranscript}</Text>
-                    </View>
-                  ) : null}
-
-                  <TouchableOpacity style={styles.stopButton} onPress={stopVoiceInput}>
-                    <Text style={styles.stopButtonText} numberOfLines={1}>
-                      ⏹ 듣기 중지하고 입력하기
-                    </Text>
-                  </TouchableOpacity>
-                </View>
-              )}
-
-              {voiceMessage ? (
-                <Text style={styles.voiceMessage}>{voiceMessage}</Text>
-              ) : null}
-            </View>
           </View>
 
           <View style={styles.stepBadge}>
@@ -1176,7 +921,7 @@ ${photoLine}
           <View style={styles.sectionCard}>
             <Text style={styles.sectionTitle}>약 봉투 사진을 넣어주세요</Text>
             <Text style={styles.sectionDescription}>
-              약 이름이 기억나지 않을 때 도움이 됩니다.
+              약 봉투 사진은 복약 설명과 알림 초안에 함께 표시됩니다.
             </Text>
 
             <View style={styles.photoButtonRow}>
@@ -1219,12 +964,6 @@ ${photoLine}
                     resizeMode="contain"
                   />
                 </View>
-
-                {isPhotoAnalyzing ? (
-                  <Text style={styles.photoAnalysisText}>
-                    약 봉투 글자를 확인하고 있습니다.{"\n"}잠시만 기다려주세요.
-                  </Text>
-                ) : null}
 
                 {medicinePhotoAnalysis ? (
                   <Text style={styles.photoAnalysisText}>
@@ -1325,7 +1064,7 @@ ${photoLine}
           <View style={styles.sectionCard}>
             <Text style={styles.sectionTitle}>AI가 알림 초안을 만들었습니다</Text>
             <Text style={styles.sectionDescription}>
-              약 봉투에서 읽은 복용 시간을 바탕으로 준비했습니다. 복용 시간은 약 봉투와 한 번 더 확인해주세요.
+              약 봉투와 입력한 진료 내용을 바탕으로 준비했습니다. 복용 시간은 약 봉투와 한 번 더 확인해주세요.
             </Text>
 
             {reminderDrafts.map((draft) => (
@@ -1443,7 +1182,7 @@ ${photoLine}
         <ScrollView contentContainerStyle={styles.screenBody}>
           <View style={styles.noticeBox}>
             <Text style={styles.noticeText}>
-              현재 버전에서는 알림 초안을 저장합니다. 실제 푸시 알림은 다음 단계에서 연결합니다.
+              현재 안정화 버전에서는 실제 푸시 알림 대신 알림 초안을 저장합니다. 앱이 안정적으로 켜지는 것을 확인한 뒤 실제 알림을 다시 연결합니다.
             </Text>
           </View>
 
@@ -1694,6 +1433,10 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     borderColor: "#D8E7F0",
     marginBottom: 22,
+    shadowColor: "#0B3A59",
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 6 },
     elevation: 3,
   },
   homeFeatureTitle: {
@@ -1844,132 +1587,6 @@ const styles = StyleSheet.create({
     lineHeight: 32,
     color: "#0B2535",
     marginBottom: 18,
-  },
-  voicePanel: {
-    backgroundColor: "#F8FBFD",
-    borderRadius: 24,
-    padding: 16,
-    borderWidth: 1.8,
-    borderColor: "#BCD7E5",
-  },
-  voiceTitle: {
-    fontFamily: FONT.koExtraBold,
-    fontSize: 20,
-    color: "#083A5A",
-    marginBottom: 8,
-  },
-  voiceDescription: {
-    fontFamily: FONT.koRegular,
-    fontSize: 16,
-    lineHeight: 28,
-    color: "#4A7087",
-    marginBottom: 14,
-  },
-  voiceButtonRow: {
-    flexDirection: "column",
-    gap: 10,
-  },
-  voiceStartButton: {
-    width: "100%",
-    backgroundColor: "#DFF1FA",
-    borderRadius: 20,
-    paddingVertical: 17,
-    paddingHorizontal: 12,
-    alignItems: "center",
-    borderWidth: 1.8,
-    borderColor: "#8FC7DE",
-  },
-  voiceStartButtonText: {
-    fontFamily: FONT.koExtraBold,
-    fontSize: 18,
-    color: "#0B5D83",
-    marginBottom: 5,
-    textAlign: "center",
-  },
-  voiceReplaceButton: {
-    width: "100%",
-    backgroundColor: "#EEF6FA",
-    borderRadius: 20,
-    paddingVertical: 17,
-    paddingHorizontal: 12,
-    alignItems: "center",
-    borderWidth: 1.8,
-    borderColor: "#BCD7E5",
-  },
-  voiceReplaceButtonText: {
-    fontFamily: FONT.koExtraBold,
-    fontSize: 18,
-    color: "#164B6A",
-    marginBottom: 5,
-    textAlign: "center",
-  },
-  voiceSubText: {
-    fontFamily: FONT.koRegular,
-    fontSize: 14,
-    color: "#315B73",
-    textAlign: "center",
-  },
-  recordingBox: {
-    backgroundColor: "#FFF7ED",
-    borderRadius: 22,
-    padding: 16,
-    borderWidth: 1.8,
-    borderColor: "#FDBA74",
-  },
-  recordingTopRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 10,
-  },
-  recordDot: {
-    width: 13,
-    height: 13,
-    borderRadius: 999,
-    backgroundColor: "#EF4444",
-    marginRight: 10,
-  },
-  recordingTitle: {
-    fontFamily: FONT.koExtraBold,
-    fontSize: 20,
-    color: "#9A3412",
-  },
-  transcriptBox: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 18,
-    padding: 13,
-    marginBottom: 12,
-    borderWidth: 1.2,
-    borderColor: "#FED7AA",
-  },
-  transcriptLabel: {
-    fontFamily: FONT.koExtraBold,
-    fontSize: 14,
-    color: "#9A3412",
-    marginBottom: 6,
-  },
-  transcriptText: {
-    fontFamily: FONT.koRegular,
-    fontSize: 17,
-    lineHeight: 29,
-    color: "#111827",
-  },
-  stopButton: {
-    backgroundColor: "#C2410C",
-    borderRadius: 20,
-    paddingVertical: 17,
-    alignItems: "center",
-  },
-  stopButtonText: {
-    fontFamily: FONT.koExtraBold,
-    color: "#FFFFFF",
-    fontSize: 18,
-  },
-  voiceMessage: {
-    fontFamily: FONT.koRegular,
-    fontSize: 15,
-    lineHeight: 26,
-    color: "#315B73",
-    marginTop: 12,
   },
   photoButtonRow: {
     flexDirection: "row",
