@@ -16,19 +16,10 @@ import {
 } from "react-native";
 import * as ImagePicker from "expo-image-picker";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { useFonts } from "expo-font";
+
 
 const LOGO = require("./assets/mydoctor-logo.png");
 
-const FONT = {
-  koRegular: "NanumRound",
-  koBold: "NanumRoundBold",
-  koExtraBold: "NanumRoundExtraBold",
-  enRegular: "MontserratRegular",
-  enSemiBold: "MontserratSemiBold",
-  enBold: "MontserratBold",
-  enExtraBold: "MontserratExtraBold",
-};
 
 const STORAGE_KEYS = {
   records: "MYDOCTOR_RECORDS",
@@ -44,27 +35,19 @@ const defaultMealTimes = {
 
 const defaultResult = {
   summary:
-    "진료 내용을 입력하거나 약 봉투 사진을 넣으면, 오늘 꼭 기억해야 할 핵심을 쉽게 정리해드립니다.",
+    "진료 ?�용???�력?�거????봉투 ?�진???�으�? ?�늘 �?기억?�야 ???�심???�게 ?�리?�드립니??",
   disease:
-    "진료 내용을 입력하고 버튼을 누르면, 환자 눈높이에 맞춘 설명이 나옵니다.",
+    "진료 ?�용???�력?�고 버튼???�르�? ?�자 ?�높?�에 맞춘 ?�명???�옵?�다.",
   medicine:
-    "처방받은 약을 언제, 어떻게 먹어야 하는지 쉽게 정리해드립니다.",
+    "처방받�? ?�을 ?�제, ?�떻�?먹어???�는지 ?�게 ?�리?�드립니??",
   caution:
-    "생활에서 조심해야 할 점을 환자 눈높이에 맞게 정리해드립니다.",
+    "?�활?�서 조심?�야 ???�을 ?�자 ?�높?�에 맞게 ?�리?�드립니??",
   hospital:
-    "다시 병원에 가야 하는 상황이나 재진 일정을 정리해드립니다.",
+    "?�시 병원??가???�는 ?�황?�나 ?�진 ?�정???�리?�드립니??",
 };
 
 export default function App() {
-  const [fontsLoaded] = useFonts({
-    NanumRound: require("./assets/fonts/NanumSquareRoundR.ttf"),
-    NanumRoundBold: require("./assets/fonts/NanumSquareRoundB.ttf"),
-    NanumRoundExtraBold: require("./assets/fonts/NanumSquareRoundEB.ttf"),
-    MontserratRegular: require("./assets/fonts/Montserrat-Regular.ttf"),
-    MontserratSemiBold: require("./assets/fonts/Montserrat-SemiBold.ttf"),
-    MontserratBold: require("./assets/fonts/Montserrat-Bold.ttf"),
-    MontserratExtraBold: require("./assets/fonts/Montserrat-ExtraBold.ttf"),
-  });
+ 
 
   const [activeTab, setActiveTab] = useState("home");
   const [screen, setScreen] = useState("home");
@@ -89,9 +72,6 @@ export default function App() {
     loadStoredData();
   }, []);
 
-  if (!fontsLoaded) {
-    return <View style={styles.loadingRoot} />;
-  }
 
   const loadStoredData = async () => {
     try {
@@ -148,10 +128,10 @@ export default function App() {
     return normalizeText(text)
       .replace(/[\s\-_().,[\]{}<>]/g, "")
       .replace(/mg/g, "")
-      .replace(/정/g, "")
-      .replace(/정제/g, "")
-      .replace(/서방/g, "")
-      .replace(/필름코팅/g, "");
+      .replace(/??g, "")
+      .replace(/?�제/g, "")
+      .replace(/?�방/g, "")
+      .replace(/?�름코팅/g, "");
   };
 
   const detectMedicineType = (text = "") => {
@@ -166,22 +146,22 @@ export default function App() {
       });
 
     const diabetesKeywords = [
-      "당뇨",
-      "당뇨병",
-      "혈당",
-      "혈당조절",
-      "혈당 조절",
-      "인슐린",
-      "메트포르민",
-      "다이아벡스",
+      "?�뇨",
+      "?�뇨�?,
+      "?�당",
+      "?�당조절",
+      "?�당 조절",
+      "?�슐�?,
+      "메트?�르�?,
+      "?�이?�벡??,
       "글루파",
       "글루파850",
       "glupa",
       "glupa850",
-      "다이아미크론",
-      "디아미크론",
-      "다이아미크론엠알",
-      "디아미크론엠알",
+      "?�이?��??�론",
+      "?�아미크�?,
+      "?�이?��??�론?�알",
+      "?�아미크론엠??,
       "diamicron",
       "diamicronmr",
       "diamicron mr",
@@ -194,13 +174,13 @@ export default function App() {
     ];
 
     const bpKeywords = [
-      "고혈압",
-      "혈압",
-      "암로디핀",
-      "노바스크",
+      "고혈??,
+      "?�압",
+      "?�로?��?",
+      "?�바?�크",
       "로사르탄",
       "발사르탄",
-      "텔미사르탄",
+      "?��??�르??,
       "amlodipine",
       "losartan",
       "valsartan",
@@ -210,17 +190,17 @@ export default function App() {
     ];
 
     const refluxKeywords = [
-      "역류",
-      "속쓰림",
-      "속 쓰림",
-      "식도염",
-      "위산",
-      "위산분비억제",
+      "??��",
+      "?�쓰�?,
+      "???�림",
+      "?�도??,
+      "?�산",
+      "?�산분비?�제",
       "ppi",
-      "오메프라졸",
-      "판토프라졸",
-      "란소프라졸",
-      "라베프라졸",
+      "?�메?�라�?,
+      "?�토?�라�?,
+      "?�?�프?�졸",
+      "?�베?�라�?,
       "omeprazole",
       "pantoprazole",
       "lansoprazole",
@@ -238,32 +218,32 @@ export default function App() {
   const getMedicineAnalysisText = (type) => {
     if (type === "diabetes") {
       return {
-        title: "당뇨약 또는 혈당 조절 단서가 확인되었습니다.",
+        title: "?�뇨???�는 ?�당 조절 ?�서가 ?�인?�었?�니??",
         message:
-          "약마다 복용 시간이 다를 수 있습니다.\n약 봉투의 복용법을 꼭 확인해주세요.\n식은땀, 손떨림, 심한 어지러움은 저혈당 증상일 수 있습니다.",
+          "?�마??복용 ?�간???��? ???�습?�다.\n??봉투??복용법을 �??�인?�주?�요.\n?��??�, ?�떨�? ?�한 ?��??��??� ?�?�당 증상?????�습?�다.",
       };
     }
 
     if (type === "bloodPressure") {
       return {
-        title: "혈압약 관련 단서가 확인되었습니다.",
+        title: "?�압??관???�서가 ?�인?�었?�니??",
         message:
-          "혈압약은 매일 같은 시간에 꾸준히 드시는 것이 중요합니다.\n증상이 없다고 임의로 중단하면 혈압이 다시 올라갈 수 있습니다.",
+          "?�압?��? 매일 같�? ?�간??꾸�????�시??것이 중요?�니??\n증상???�다�??�의�?중단?�면 ?�압???�시 ?�라�????�습?�다.",
       };
     }
 
     if (type === "reflux") {
       return {
-        title: "위산 억제제 관련 단서가 확인되었습니다.",
+        title: "?�산 ?�제??관???�서가 ?�인?�었?�니??",
         message:
-          "위산을 줄이는 약은 식사 전 복용이 중요한 경우가 많습니다.\n정확한 복용법은 약 봉투와 처방전을 함께 확인해주세요.",
+          "?�산??줄이???��? ?�사 ??복용??중요??경우가 많습?�다.\n?�확??복용법�? ??봉투?� 처방?�을 ?�께 ?�인?�주?�요.",
       };
     }
 
     return {
-      title: "약 봉투 사진이 첨부되었습니다.",
+      title: "??봉투 ?�진??첨�??�었?�니??",
       message:
-        "약 이름과 복용 시간이 잘 보이도록 촬영된 사진이면 복약 설명에 도움이 됩니다.\n진료 내용을 함께 입력하면 더 정확히 정리할 수 있습니다.",
+        "???�름�?복용 ?�간????보이?�록 촬영???�진?�면 복약 ?�명???��????�니??\n진료 ?�용???�께 ?�력?�면 ???�확???�리?????�습?�다.",
     };
   };
 
@@ -274,21 +254,21 @@ export default function App() {
       return [
         {
           id: "morning-before",
-          label: "아침 식전 30분",
+          label: "?�침 ?�전 30�?,
           meal: "breakfast",
           offsetMinutes: -30,
           medicines: ["DiAMiCRON MR", "Dexima"],
         },
         {
           id: "morning-after",
-          label: "아침 식후 30분",
+          label: "?�침 ?�후 30�?,
           meal: "breakfast",
           offsetMinutes: 30,
           medicines: ["Rosuzet"],
         },
         {
           id: "breakfast-dinner-after",
-          label: "아침, 저녁 식사 직후",
+          label: "?�침, ?�???�사 직후",
           meal: "breakfastDinner",
           offsetMinutes: 10,
           medicines: ["GLUPA 850"],
@@ -300,10 +280,10 @@ export default function App() {
       return [
         {
           id: "morning-bp",
-          label: "아침 식후 30분",
+          label: "?�침 ?�후 30�?,
           meal: "breakfast",
           offsetMinutes: 30,
-          medicines: ["혈압약"],
+          medicines: ["?�압??],
         },
       ];
     }
@@ -312,10 +292,10 @@ export default function App() {
       return [
         {
           id: "morning-reflux",
-          label: "아침 식전 30분",
+          label: "?�침 ?�전 30�?,
           meal: "breakfast",
           offsetMinutes: -30,
-          medicines: ["위산 억제제"],
+          medicines: ["?�산 ?�제??],
         },
       ];
     }
@@ -323,10 +303,10 @@ export default function App() {
     return [
       {
         id: "general-after",
-        label: "식후 복용 알림",
+        label: "?�후 복용 ?�림",
         meal: "breakfast",
         offsetMinutes: 30,
-        medicines: ["약 봉투에서 확인된 약"],
+        medicines: ["??봉투?�서 ?�인????],
       },
     ];
   };
@@ -376,8 +356,8 @@ export default function App() {
       };
 
       if (draft.meal === "breakfastDinner") {
-        addPlan("breakfast", " · 아침");
-        addPlan("dinner", " · 저녁");
+        addPlan("breakfast", " · ?�침");
+        addPlan("dinner", " · ?�??);
       } else {
         addPlan(draft.meal);
       }
@@ -410,8 +390,8 @@ export default function App() {
 
     if (!permission.granted) {
       Alert.alert(
-        "사진 접근 권한 필요",
-        "약 봉투 사진을 선택하려면 사진 접근 권한을 허용해주세요."
+        "?�진 ?�근 권한 ?�요",
+        "??봉투 ?�진???�택?�려�??�진 ?�근 권한???�용?�주?�요."
       );
       return;
     }
@@ -432,8 +412,8 @@ export default function App() {
 
     if (!permission.granted) {
       Alert.alert(
-        "카메라 권한 필요",
-        "약 봉투를 촬영하려면 카메라 권한을 허용해주세요."
+        "카메??권한 ?�요",
+        "??봉투�?촬영?�려�?카메??권한???�용?�주?�요."
       );
       return;
     }
@@ -461,81 +441,81 @@ export default function App() {
     if (type === "diabetes") {
       return {
         summary:
-          "당뇨약 또는 혈당 조절 단서가 확인되었습니다.\n약 복용 시간과 식사 시간을 함께 지키는 것이 중요합니다.",
+          "?�뇨???�는 ?�당 조절 ?�서가 ?�인?�었?�니??\n??복용 ?�간�??�사 ?�간???�께 지?�는 것이 중요?�니??",
         disease:
-          "당뇨병은 혈액 속 포도당, 즉 혈당이 높게 유지되는 병입니다. 혈당이 오래 높으면 눈, 콩팥, 신경, 혈관에 문제가 생길 수 있어 꾸준한 관리가 필요합니다.",
+          "?�뇨병�? ?�액 ???�도?? �??�당???�게 ?��??�는 병입?�다. ?�당???�래 ?�으�??? 콩팥, ?�경, ?��???문제가 ?�길 ???�어 꾸�???관리�? ?�요?�니??",
         medicine:
-          "당뇨약은 약 종류에 따라 복용 시간이 다를 수 있습니다. 식전, 식후 복용법을 약 봉투에서 꼭 확인해주세요. 식사를 거른 상태에서 약을 먹으면 저혈당이 생길 수 있습니다.",
+          "?�뇨?��? ??종류???�라 복용 ?�간???��? ???�습?�다. ?�전, ?�후 복용법을 ??봉투?�서 �??�인?�주?�요. ?�사�?거른 ?�태?�서 ?�을 먹으�??�?�당???�길 ???�습?�다.",
         caution:
-          "식사를 거르지 않고 규칙적으로 드시는 것이 중요합니다. 단 음료나 과도한 간식은 줄이고, 혈당을 기록하면 치료 조절에 도움이 됩니다.",
+          "?�사�?거르지 ?�고 규칙?�으�??�시??것이 중요?�니?? ???�료??과도??간식?� 줄이�? ?�당??기록?�면 치료 조절???��????�니??",
         hospital:
-          "식은땀, 손떨림, 심한 어지러움, 의식이 흐려지는 증상은 저혈당일 수 있습니다. 이런 증상이 반복되거나 혈당이 너무 높게 유지되면 병원에 문의해주세요.",
+          "?��??�, ?�떨�? ?�한 ?��??��?, ?�식???�려지??증상?� ?�?�당?????�습?�다. ?�런 증상??반복?�거???�당???�무 ?�게 ?��??�면 병원??문의?�주?�요.",
       };
     }
 
     if (type === "bloodPressure") {
       return {
         summary:
-          "혈압약 관련 단서가 확인되었습니다.\n증상이 없어도 매일 같은 시간에 복용하는 것이 중요합니다.",
+          "?�압??관???�서가 ?�인?�었?�니??\n증상???�어??매일 같�? ?�간??복용?�는 것이 중요?�니??",
         disease:
-          "고혈압은 혈관 안의 압력이 계속 높은 상태입니다. 증상이 없어도 오래 지속되면 심장, 뇌혈관, 콩팥에 부담을 줄 수 있습니다.",
+          "고혈?��? ?��? ?�의 ?�력??계속 ?��? ?�태?�니?? 증상???�어???�래 지?�되�??�장, ?�혈관, 콩팥??부?�을 �????�습?�다.",
         medicine:
-          "혈압약은 매일 같은 시간에 꾸준히 드시는 것이 중요합니다. 증상이 없다고 임의로 끊으면 혈압이 다시 올라갈 수 있습니다.",
+          "?�압?��? 매일 같�? ?�간??꾸�????�시??것이 중요?�니?? 증상???�다�??�의�??�으�??�압???�시 ?�라�????�습?�다.",
         caution:
-          "짠 음식은 줄이고, 규칙적인 운동과 체중 관리가 도움이 됩니다. 집에서 혈압을 재서 기록하면 진료 때 도움이 됩니다.",
+          "�??�식?� 줄이�? 규칙?�인 ?�동�?체중 관리�? ?��????�니?? 집에???�압???�서 기록?�면 진료 ???��????�니??",
         hospital:
-          "심한 두통, 가슴통증, 숨참, 한쪽 팔다리 마비, 말이 어눌해지는 증상이 있으면 바로 진료를 받아야 합니다.",
+          "?�한 ?�통, 가?�통�? ?�참, ?�쪽 ?�다�?마비, 말이 ?�눌?��???증상???�으�?바로 진료�?받아???�니??",
       };
     }
 
     if (type === "reflux") {
       return {
         summary:
-          "위산 또는 역류성 식도염 관련 단서가 확인되었습니다.\n약 복용 시간과 식습관을 함께 확인하는 것이 중요합니다.",
+          "?�산 ?�는 ??��???�도??관???�서가 ?�인?�었?�니??\n??복용 ?�간�??�습관???�께 ?�인?�는 것이 중요?�니??",
         disease:
-          "역류성 식도염은 위산이나 음식물이 식도로 거꾸로 올라오는 병입니다. 가슴 쓰림이나 신물이 올라오는 증상이 생길 수 있습니다.",
+          "??��???�도?��? ?�산?�나 ?�식물이 ?�도�?거꾸�??�라?�는 병입?�다. 가???�림?�나 ?�물???�라?�는 증상???�길 ???�습?�다.",
         medicine:
-          "위산을 줄이는 약은 식사 전에 복용할 때 효과가 좋은 경우가 많습니다. 정확한 복용 시간은 약 봉투와 처방전을 확인해주세요.",
+          "?�산??줄이???��? ?�사 ?�에 복용?????�과가 좋�? 경우가 많습?�다. ?�확??복용 ?�간?� ??봉투?� 처방?�을 ?�인?�주?�요.",
         caution:
-          "매운 음식, 카페인, 기름진 음식, 술은 피하는 것이 좋습니다. 식사 후 바로 눕지 말고, 잠자기 전에는 음식을 줄이는 것이 도움이 됩니다.",
+          "매운 ?�식, 카페?? 기름�??�식, ?��? ?�하??것이 좋습?�다. ?�사 ??바로 ?��? 말고, ?�자�??�에???�식??줄이??것이 ?��????�니??",
         hospital:
-          "증상이 계속되거나 더 심해지면 병원에 다시 방문해야 합니다. 피를 토하거나 검은 변을 보거나 삼키기 힘들면 빨리 진료를 받아야 합니다.",
+          "증상??계속?�거?????�해지�?병원???�시 방문?�야 ?�니?? ?��? ?�하거나 검?� 변??보거???�키�??�들�?빨리 진료�?받아???�니??",
       };
     }
 
     if (medicinePhotoUri && !userInput.trim()) {
       return {
         summary:
-          "약 봉투 사진이 첨부되었습니다.\n약 이름과 복용법은 약 봉투와 처방전을 함께 확인해주세요.",
+          "??봉투 ?�진??첨�??�었?�니??\n???�름�?복용법�? ??봉투?� 처방?�을 ?�께 ?�인?�주?�요.",
         disease:
-          "현재는 진료 내용이 입력되지 않아 정확한 병명은 알 수 없습니다. 병명이나 증상을 함께 입력하면 더 구체적인 설명을 받을 수 있습니다.",
+          "?�재??진료 ?�용???�력?��? ?�아 ?�확??병명?� ?????�습?�다. 병명?�나 증상???�께 ?�력?�면 ??구체?�인 ?�명??받을 ???�습?�다.",
         medicine:
           medicinePhotoAnalysis ||
-          "약 봉투 사진이 첨부되었습니다. 약 이름, 용량, 복용 시간은 약 봉투와 처방전을 기준으로 확인해야 합니다.",
+          "??봉투 ?�진??첨�??�었?�니?? ???�름, ?�량, 복용 ?�간?� ??봉투?� 처방?�을 기�??�로 ?�인?�야 ?�니??",
         caution:
-          "사진만으로 약을 임의로 판단하거나 복용법을 바꾸면 안 됩니다. 약 이름이 헷갈리거나 복용 시간을 잊은 경우에는 약국이나 병원에 확인하는 것이 안전합니다.",
+          "?�진만으�??�을 ?�의�??�단?�거??복용법을 바꾸�????�니?? ???�름???�갈리거??복용 ?�간???��? 경우?�는 ?�국?�나 병원???�인?�는 것이 ?�전?�니??",
         hospital:
-          "약을 먹은 뒤 두드러기, 호흡곤란, 심한 어지러움, 입술이나 얼굴이 붓는 증상이 생기면 즉시 진료를 받아야 합니다.",
+          "?�을 먹�? ???�드?�기, ?�흡곤�?, ?�한 ?��??��?, ?�술?�나 ?�굴??붓는 증상???�기�?즉시 진료�?받아???�니??",
       };
     }
 
     return {
       summary:
-        "입력하신 진료 내용을 바탕으로 정리했습니다.\n정확한 내용은 처방전과 의료진 설명을 함께 확인해주세요.",
+        "?�력?�신 진료 ?�용??바탕?�로 ?�리?�습?�다.\n?�확???�용?� 처방?�과 ?�료�??�명???�께 ?�인?�주?�요.",
       disease:
-        "입력하신 진료 내용을 바탕으로 보면, 현재 증상과 의사 선생님의 설명을 쉽게 정리해 이해하는 것이 중요합니다. 정확한 진단명은 의료진의 설명과 처방전을 함께 확인해주세요.",
+        "?�력?�신 진료 ?�용??바탕?�로 보면, ?�재 증상�??�사 ?�생?�의 ?�명???�게 ?�리???�해?�는 것이 중요?�니?? ?�확??진단명�? ?�료진의 ?�명�?처방?�을 ?�께 ?�인?�주?�요.",
       medicine:
-        "약은 처방받은 용법과 용량에 맞춰 복용해야 합니다. 식전, 식후, 자기 전 등 복용 시간이 다를 수 있으므로 약 봉투나 처방전을 꼭 확인해주세요.",
+        "?��? 처방받�? ?�법�??�량??맞춰 복용?�야 ?�니?? ?�전, ?�후, ?�기 ????복용 ?�간???��? ???�으므�???봉투??처방?�을 �??�인?�주?�요.",
       caution:
-        "생활습관 관리나 음식 조절에 대한 설명을 들었다면 잘 지키는 것이 좋습니다. 증상이 갑자기 심해지거나 평소와 다른 증상이 생기면 병원에 문의해주세요.",
+        "?�활?��? 관리나 ?�식 조절???�???�명???�었?�면 ??지?�는 것이 좋습?�다. 증상??갑자�??�해지거나 ?�소?� ?�른 증상???�기�?병원??문의?�주?�요.",
       hospital:
-        "호흡곤란, 심한 통증, 고열, 의식 저하, 심한 알레르기 반응이 생기면 바로 병원에 문의해야 합니다. 재진 일정이 안내되었다면 꼭 지켜주세요.",
+        "?�흡곤�?, ?�한 ?�증, 고열, ?�식 ?�?? ?�한 ?�레르기 반응???�기�?바로 병원??문의?�야 ?�니?? ?�진 ?�정???�내?�었?�면 �?지켜주?�요.",
     };
   };
 
   const handleTranslate = () => {
     if (!userInput.trim() && !medicinePhotoUri) {
-      Alert.alert("입력 필요", "진료 내용 또는 약 봉투 사진을 먼저 넣어주세요.");
+      Alert.alert("?�력 ?�요", "진료 ?�용 ?�는 ??봉투 ?�진??먼�? ?�어주세??");
       return;
     }
 
@@ -572,7 +552,7 @@ export default function App() {
     const nextRecords = [newRecord, ...records];
     await saveRecords(nextRecords);
 
-    Alert.alert("저장 완료", "진료 기록이 저장되었습니다.");
+    Alert.alert("?�???�료", "진료 기록???�?�되?�습?�다.");
   };
 
   const openRecord = (record) => {
@@ -597,27 +577,27 @@ export default function App() {
 
   const buildFamilyMessage = () => {
     const photoLine = medicinePhotoAnalysis
-      ? `\n첨부 약 봉투 참고:\n${medicinePhotoAnalysis}\n`
+      ? `\n첨�? ??봉투 참고:\n${medicinePhotoAnalysis}\n`
       : "";
 
-    return `[진료 내용 요약]
+    return `[진료 ?�용 ?�약]
 
-오늘의 핵심:
+?�늘???�심:
 ${result.summary}
 
-1. 무슨 병인가요?
+1. 무슨 병인가??
 ${result.disease}
 
-2. 약은 어떻게 먹어야 하나요?
+2. ?��? ?�떻�?먹어???�나??
 ${result.medicine}
 
-3. 무엇을 조심해야 하나요?
+3. 무엇??조심?�야 ?�나??
 ${result.caution}
 
-4. 언제 다시 병원에 가야 하나요?
+4. ?�제 ?�시 병원??가???�나??
 ${result.hospital}
 ${photoLine}
-※ 이 내용은 진료 내용을 쉽게 정리한 보조 설명이며, 정확한 내용은 처방전과 의료진 설명을 함께 확인해주세요.`;
+?????�용?� 진료 ?�용???�게 ?�리??보조 ?�명?�며, ?�확???�용?� 처방?�과 ?�료�??�명???�께 ?�인?�주?�요.`;
   };
 
   const handleNotifyFamily = async () => {
@@ -628,7 +608,7 @@ ${photoLine}
 
     try {
       await Share.share({
-        title: "진료 내용 요약",
+        title: "진료 ?�용 ?�약",
         message,
       });
     } catch (error) {}
@@ -644,8 +624,8 @@ ${photoLine}
     await saveReminders(nextReminders);
 
     Alert.alert(
-      "약 알림 초안 저장",
-      "복용 시간 초안이 저장되었습니다.\n실제 푸시 알림은 다음 단계에서 연결합니다."
+      "???�림 초안 ?�??,
+      "복용 ?�간 초안???�?�되?�습?�다.\n?�제 ?�시 ?�림?� ?�음 ?�계?�서 ?�결?�니??"
     );
 
     setActiveTab("reminders");
@@ -722,7 +702,7 @@ ${photoLine}
           }}
         >
           <Text style={styles.backIconText} numberOfLines={1}>
-            ←
+            ??
           </Text>
         </TouchableOpacity>
 
@@ -748,10 +728,10 @@ ${photoLine}
 
   const renderBottomTabs = () => {
     const tabs = [
-      { key: "home", label: "홈", icon: "🏠" },
-      { key: "records", label: "기록", icon: "📋" },
-      { key: "reminders", label: "약 알림", icon: "💊" },
-      { key: "settings", label: "설정", icon: "⚙️" },
+      { key: "home", label: "??, icon: "?��" },
+      { key: "records", label: "기록", icon: "?��" },
+      { key: "reminders", label: "???�림", icon: "?��" },
+      { key: "settings", label: "?�정", icon: "?�️" },
     ];
 
     return (
@@ -791,17 +771,17 @@ ${photoLine}
           <Image source={LOGO} style={styles.homeLogoImage} resizeMode="contain" />
 
           <Text style={styles.homeMainText}>
-            진료실에서 들은 어려운 말을{"\n"}쉽게 정리해드려요
+            진료?�에???��? ?�려??말을{"\n"}?�게 ?�리?�드?�요
           </Text>
 
           <View style={styles.homeFeatureBox}>
             <Text style={styles.homeFeatureTitle} numberOfLines={1}>
-              이 앱으로 할 수 있는 일
+              ???�으�??????�는 ??
             </Text>
-            <Text style={styles.homeFeatureText}>✓ 어려운 진료 내용을 쉽게 보기</Text>
-            <Text style={styles.homeFeatureText}>✓ 가족에게 요약문 보내기</Text>
-            <Text style={styles.homeFeatureText}>✓ 약 알림 시간 설정하기</Text>
-            <Text style={styles.homeFeatureText}>✓ 진료 기록 다시 확인하기</Text>
+            <Text style={styles.homeFeatureText}>???�려??진료 ?�용???�게 보기</Text>
+            <Text style={styles.homeFeatureText}>??가족에�??�약�?보내�?/Text>
+            <Text style={styles.homeFeatureText}>?????�림 ?�간 ?�정?�기</Text>
+            <Text style={styles.homeFeatureText}>??진료 기록 ?�시 ?�인?�기</Text>
           </View>
 
           <TouchableOpacity
@@ -812,7 +792,7 @@ ${photoLine}
             }}
           >
             <Text style={styles.startButtonText} numberOfLines={1}>
-              새 진료 정리하기
+              ??진료 ?�리?�기
             </Text>
           </TouchableOpacity>
 
@@ -837,7 +817,7 @@ ${photoLine}
               }}
             >
               <Text style={styles.quickButtonText} numberOfLines={1}>
-                약 알림 보기
+                ???�림 보기
               </Text>
             </TouchableOpacity>
           </View>
@@ -849,19 +829,19 @@ ${photoLine}
   const renderInputScreen = () => {
     return (
       <View style={styles.appScreen}>
-        {renderTopBar("진료 내용 입력", "home")}
+        {renderTopBar("진료 ?�용 ?�력", "home")}
 
         <ScrollView contentContainerStyle={styles.screenBody}>
           <View style={styles.stepBadge}>
             <Text style={styles.stepBadgeText} numberOfLines={1}>
-              1단계
+              1?�계
             </Text>
           </View>
 
           <View style={styles.sectionCard}>
-            <Text style={styles.sectionTitle}>진료 내용을 적어주세요</Text>
+            <Text style={styles.sectionTitle}>진료 ?�용???�어주세??/Text>
             <Text style={styles.sectionDescription}>
-              병원에서 들은 말이나 약 이름을 짧게 적어도 됩니다.
+              병원?�서 ?��? 말이?????�름??짧게 ?�어???�니??
             </Text>
 
             <TextInput
@@ -880,21 +860,21 @@ ${photoLine}
                   setReminderDrafts(generateReminderDrafts(type, text));
                 }
               }}
-              placeholder="예: 당뇨 때문에 병원에 갔고 약을 받았어요. 식후에 먹으라고 하셨어요."
+              placeholder="?? ?�뇨 ?�문??병원??갔고 ?�을 받았?�요. ?�후??먹으?�고 ?�셨?�요."
               placeholderTextColor="#6B7C8D"
             />
           </View>
 
           <View style={styles.stepBadge}>
             <Text style={styles.stepBadgeText} numberOfLines={1}>
-              2단계
+              2?�계
             </Text>
           </View>
 
           <View style={styles.sectionCard}>
-            <Text style={styles.sectionTitle}>약 봉투 사진을 넣어주세요</Text>
+            <Text style={styles.sectionTitle}>??봉투 ?�진???�어주세??/Text>
             <Text style={styles.sectionDescription}>
-              약 봉투 사진은 복약 설명과 알림 초안에 함께 표시됩니다.
+              ??봉투 ?�진?� 복약 ?�명�??�림 초안???�께 ?�시?�니??
             </Text>
 
             <View style={styles.photoButtonRow}>
@@ -903,7 +883,7 @@ ${photoLine}
                 onPress={handleSelectMedicinePhoto}
               >
                 <Text style={styles.photoButtonText} numberOfLines={1}>
-                  🖼️ 사진 선택
+                  ?���??�진 ?�택
                 </Text>
               </TouchableOpacity>
 
@@ -912,7 +892,7 @@ ${photoLine}
                 onPress={handleCaptureMedicinePhoto}
               >
                 <Text style={styles.photoButtonText} numberOfLines={1}>
-                  📷 촬영하기
+                  ?�� 촬영?�기
                 </Text>
               </TouchableOpacity>
             </View>
@@ -921,11 +901,11 @@ ${photoLine}
               <View style={styles.photoPreviewBox}>
                 <View style={styles.photoPreviewHeader}>
                   <Text style={styles.photoPreviewTitle} numberOfLines={1}>
-                    첨부된 약 봉투 사진
+                    첨�?????봉투 ?�진
                   </Text>
                   <TouchableOpacity onPress={handleRemoveMedicinePhoto}>
                     <Text style={styles.photoRemoveText} numberOfLines={1}>
-                      삭제
+                      ??��
                     </Text>
                   </TouchableOpacity>
                 </View>
@@ -947,10 +927,10 @@ ${photoLine}
             ) : (
               <View style={styles.emptyPhotoBox}>
                 <Text style={styles.emptyPhotoIcon} numberOfLines={1}>
-                  📄
+                  ?��
                 </Text>
                 <Text style={styles.emptyPhotoText}>
-                  약 봉투 사진을 넣으면{"\n"}복약 설명에 함께 반영됩니다.
+                  ??봉투 ?�진???�으�?"\n"}복약 ?�명???�께 반영?�니??
                 </Text>
               </View>
             )}
@@ -963,14 +943,14 @@ ${photoLine}
           >
             <Text style={styles.mainButtonText} numberOfLines={2}>
               {isLoading
-                ? "진료 내용을 쉬운 설명 카드로 정리하고 있습니다."
-                : "AI로 쉽게 정리하기"}
+                ? "진료 ?�용???�운 ?�명 카드�??�리?�고 ?�습?�다."
+                : "AI�??�게 ?�리?�기"}
             </Text>
           </TouchableOpacity>
 
           <TouchableOpacity style={styles.clearButton} onPress={handleClear}>
             <Text style={styles.clearButtonText} numberOfLines={1}>
-              전체 입력 지우기
+              ?�체 ?�력 지?�기
             </Text>
           </TouchableOpacity>
         </ScrollView>
@@ -981,44 +961,44 @@ ${photoLine}
   const renderResultScreen = () => {
     return (
       <View style={styles.appScreen}>
-        {renderTopBar("쉬운 설명 카드", "input")}
+        {renderTopBar("?�운 ?�명 카드", "input")}
 
         <ScrollView contentContainerStyle={styles.screenBody}>
           {editingRecord ? (
             <View style={styles.noticeBox}>
               <Text style={styles.noticeText}>
-                저장된 진료 기록을 다시 보고 있습니다.
+                ?�?�된 진료 기록???�시 보고 ?�습?�다.
               </Text>
             </View>
           ) : null}
 
           <View style={styles.summaryBox}>
-            <Text style={styles.summaryTitle}>💡 오늘 꼭 기억할 내용</Text>
+            <Text style={styles.summaryTitle}>?�� ?�늘 �?기억???�용</Text>
             <Text style={styles.summaryText}>{result.summary}</Text>
           </View>
 
-          <InfoCard icon="📋" title="무슨 병인가요?" text={result.disease} />
-          <InfoCard icon="💊" title="약은 어떻게 먹나요?" text={result.medicine} />
-          <InfoCard icon="⚠️" title="무엇을 조심하나요?" text={result.caution} />
-          <InfoCard icon="🏥" title="언제 병원에 다시 가나요?" text={result.hospital} />
+          <InfoCard icon="?��" title="무슨 병인가??" text={result.disease} />
+          <InfoCard icon="?��" title="?��? ?�떻�?먹나??" text={result.medicine} />
+          <InfoCard icon="?�️" title="무엇??조심?�나??" text={result.caution} />
+          <InfoCard icon="?��" title="?�제 병원???�시 가?�요?" text={result.hospital} />
 
           <View style={styles.actionPanel}>
             <TouchableOpacity style={styles.familyButton} onPress={handleNotifyFamily}>
               <Text style={styles.familyButtonText} numberOfLines={1}>
-                가족에게 알리기
+                가족에�??�리�?
               </Text>
             </TouchableOpacity>
 
             <TouchableOpacity style={styles.alarmButton} onPress={openReminderSetup}>
               <Text style={styles.alarmButtonText} numberOfLines={1}>
-                약 알림 설정
+                ???�림 ?�정
               </Text>
             </TouchableOpacity>
           </View>
 
           <TouchableOpacity style={styles.saveButton} onPress={saveCurrentRecord}>
             <Text style={styles.saveButtonText} numberOfLines={1}>
-              진료 기록 저장하기
+              진료 기록 ?�?�하�?
             </Text>
           </TouchableOpacity>
         </ScrollView>
@@ -1031,13 +1011,13 @@ ${photoLine}
 
     return (
       <View style={styles.appScreen}>
-        {renderTopBar("약 알림 설정", "result")}
+        {renderTopBar("???�림 ?�정", "result")}
 
         <ScrollView contentContainerStyle={styles.screenBody}>
           <View style={styles.sectionCard}>
-            <Text style={styles.sectionTitle}>AI가 알림 초안을 만들었습니다</Text>
+            <Text style={styles.sectionTitle}>AI가 ?�림 초안??만들?�습?�다</Text>
             <Text style={styles.sectionDescription}>
-              약 봉투와 입력한 진료 내용을 바탕으로 준비했습니다. 복용 시간은 약 봉투와 한 번 더 확인해주세요.
+              ??봉투?� ?�력??진료 ?�용??바탕?�로 준비했?�니?? 복용 ?�간?� ??봉투?� ??�????�인?�주?�요.
             </Text>
 
             {reminderDrafts.map((draft) => (
@@ -1053,25 +1033,25 @@ ${photoLine}
           </View>
 
           <View style={styles.sectionCard}>
-            <Text style={styles.sectionTitle}>식사 시간을 알려주세요</Text>
+            <Text style={styles.sectionTitle}>?�사 ?�간???�려주세??/Text>
             <Text style={styles.sectionDescription}>
-              식전·식후 알림 시간을 자동으로 계산합니다.
+              ?�전·?�후 ?�림 ?�간???�동?�로 계산?�니??
             </Text>
 
             <MealInput
-              label="아침 식사"
+              label="?�침 ?�사"
               value={mealTimes.breakfast}
               onChangeText={(text) =>
                 saveMealTimes({ ...mealTimes, breakfast: text })
               }
             />
             <MealInput
-              label="점심 식사"
+              label="?�심 ?�사"
               value={mealTimes.lunch}
               onChangeText={(text) => saveMealTimes({ ...mealTimes, lunch: text })}
             />
             <MealInput
-              label="저녁 식사"
+              label="?�???�사"
               value={mealTimes.dinner}
               onChangeText={(text) =>
                 saveMealTimes({ ...mealTimes, dinner: text })
@@ -1080,7 +1060,7 @@ ${photoLine}
           </View>
 
           <View style={styles.sectionCard}>
-            <Text style={styles.sectionTitle}>저장될 알림 초안</Text>
+            <Text style={styles.sectionTitle}>?�?�될 ?�림 초안</Text>
             {plans.map((plan) => (
               <View key={plan.id} style={styles.planRow}>
                 <Text style={styles.planTime}>{plan.timeText}</Text>
@@ -1094,7 +1074,7 @@ ${photoLine}
 
           <TouchableOpacity style={styles.mainButton} onPress={saveReminderPlans}>
             <Text style={styles.mainButtonText} numberOfLines={1}>
-              알림 초안 저장하기
+              ?�림 초안 ?�?�하�?
             </Text>
           </TouchableOpacity>
         </ScrollView>
@@ -1110,9 +1090,9 @@ ${photoLine}
         <ScrollView contentContainerStyle={styles.screenBody}>
           {records.length === 0 ? (
             <EmptyState
-              icon="📋"
-              title="저장된 기록이 없습니다"
-              text="진료 내용을 정리한 뒤 기록 저장하기를 눌러주세요."
+              icon="?��"
+              title="?�?�된 기록???�습?�다"
+              text="진료 ?�용???�리????기록 ?�?�하기�? ?�러주세??"
             />
           ) : (
             records.map((record) => (
@@ -1127,7 +1107,7 @@ ${photoLine}
                     onPress={() => openRecord(record)}
                   >
                     <Text style={styles.recordOpenText} numberOfLines={1}>
-                      다시 보기
+                      ?�시 보기
                     </Text>
                   </TouchableOpacity>
 
@@ -1136,7 +1116,7 @@ ${photoLine}
                     onPress={() => deleteRecord(record.id)}
                   >
                     <Text style={styles.recordDeleteText} numberOfLines={1}>
-                      삭제
+                      ??��
                     </Text>
                   </TouchableOpacity>
                 </View>
@@ -1151,35 +1131,35 @@ ${photoLine}
   const renderRemindersScreen = () => {
     return (
       <View style={styles.appScreen}>
-        {renderTopBar("약 알림 관리", "tab-home")}
+        {renderTopBar("???�림 관�?, "tab-home")}
 
         <ScrollView contentContainerStyle={styles.screenBody}>
           <View style={styles.noticeBox}>
             <Text style={styles.noticeText}>
-              현재 버전에서는 알림 초안을 저장합니다. 실제 푸시 알림은 다음 단계에서 연결합니다.
+              ?�재 버전?�서???�림 초안???�?�합?�다. ?�제 ?�시 ?�림?� ?�음 ?�계?�서 ?�결?�니??
             </Text>
           </View>
 
           <View style={styles.sectionCard}>
-            <Text style={styles.sectionTitle}>기본 식사 시간</Text>
+            <Text style={styles.sectionTitle}>기본 ?�사 ?�간</Text>
             <Text style={styles.sectionDescription}>
-              식사 시간이 바뀌면 여기에서 수정할 수 있습니다.
+              ?�사 ?�간??바뀌면 ?�기?�서 ?�정?????�습?�다.
             </Text>
 
             <MealInput
-              label="아침 식사"
+              label="?�침 ?�사"
               value={mealTimes.breakfast}
               onChangeText={(text) =>
                 saveMealTimes({ ...mealTimes, breakfast: text })
               }
             />
             <MealInput
-              label="점심 식사"
+              label="?�심 ?�사"
               value={mealTimes.lunch}
               onChangeText={(text) => saveMealTimes({ ...mealTimes, lunch: text })}
             />
             <MealInput
-              label="저녁 식사"
+              label="?�???�사"
               value={mealTimes.dinner}
               onChangeText={(text) =>
                 saveMealTimes({ ...mealTimes, dinner: text })
@@ -1189,9 +1169,9 @@ ${photoLine}
 
           {reminders.length === 0 ? (
             <EmptyState
-              icon="💊"
-              title="저장된 알림 초안이 없습니다"
-              text="쉬운 설명 카드에서 약 알림 설정을 눌러 알림 초안을 만들 수 있습니다."
+              icon="?��"
+              title="?�?�된 ?�림 초안???�습?�다"
+              text="?�운 ?�명 카드?�서 ???�림 ?�정???�러 ?�림 초안??만들 ???�습?�다."
             />
           ) : (
             reminders.map((item) => (
@@ -1205,7 +1185,7 @@ ${photoLine}
                   onPress={() => deleteReminder(item.id)}
                 >
                   <Text style={styles.recordDeleteText} numberOfLines={1}>
-                    알림 삭제
+                    ?�림 ??��
                   </Text>
                 </TouchableOpacity>
               </View>
@@ -1219,29 +1199,29 @@ ${photoLine}
   const renderSettingsScreen = () => {
     return (
       <View style={styles.appScreen}>
-        {renderTopBar("설정", "tab-home")}
+        {renderTopBar("?�정", "tab-home")}
 
         <ScrollView contentContainerStyle={styles.screenBody}>
           <View style={styles.sectionCard}>
-            <Text style={styles.sectionTitle}>기본 식사 시간</Text>
+            <Text style={styles.sectionTitle}>기본 ?�사 ?�간</Text>
             <Text style={styles.sectionDescription}>
-              약 알림 초안을 만들 때 사용하는 기준 시간입니다.
+              ???�림 초안??만들 ???�용?�는 기�? ?�간?�니??
             </Text>
 
             <MealInput
-              label="아침 식사"
+              label="?�침 ?�사"
               value={mealTimes.breakfast}
               onChangeText={(text) =>
                 saveMealTimes({ ...mealTimes, breakfast: text })
               }
             />
             <MealInput
-              label="점심 식사"
+              label="?�심 ?�사"
               value={mealTimes.lunch}
               onChangeText={(text) => saveMealTimes({ ...mealTimes, lunch: text })}
             />
             <MealInput
-              label="저녁 식사"
+              label="?�???�사"
               value={mealTimes.dinner}
               onChangeText={(text) =>
                 saveMealTimes({ ...mealTimes, dinner: text })
@@ -1250,9 +1230,9 @@ ${photoLine}
           </View>
 
           <View style={styles.sectionCard}>
-            <Text style={styles.sectionTitle}>앱 정보</Text>
+            <Text style={styles.sectionTitle}>???�보</Text>
             <Text style={styles.sectionDescription}>
-              마이닥터는 진료 내용을 쉽게 정리하고, 가족 공유와 약 알림을 도와주는 AI 보조 앱입니다.
+              마이?�터??진료 ?�용???�게 ?�리?�고, 가�?공유?� ???�림???��?주는 AI 보조 ?�입?�다.
             </Text>
           </View>
         </ScrollView>
@@ -1265,25 +1245,25 @@ ${photoLine}
 
     return (
       <View style={styles.appScreen}>
-        {renderTopBar("보호자에게 보내기", "result")}
+        {renderTopBar("보호?�에�?보내�?, "result")}
 
         <ScrollView contentContainerStyle={styles.screenBody}>
           <View style={styles.shareNoticeBox}>
             <Text style={styles.shareNoticeText}>
-              아래 내용을 복사하거나 공유 버튼을 눌러 가족에게 전달해주세요.
+              ?�래 ?�용??복사?�거??공유 버튼???�러 가족에�??�달?�주?�요.
             </Text>
           </View>
 
           <View style={styles.familyMessageBox}>
             <Text style={styles.familyMessageTitle} numberOfLines={1}>
-              보호자용 요약문
+              보호?�용 ?�약�?
             </Text>
             <Text style={styles.familyMessageText}>{message}</Text>
           </View>
 
           <TouchableOpacity style={styles.familyButtonLarge} onPress={handleNotifyFamily}>
             <Text style={styles.familyButtonText} numberOfLines={1}>
-              공유하기 / 다시 보내기
+              공유?�기 / ?�시 보내�?
             </Text>
           </TouchableOpacity>
         </ScrollView>
@@ -1390,9 +1370,7 @@ const styles = StyleSheet.create({
     height: 175,
     marginBottom: 4,
   },
-  homeMainText: {
-    fontFamily: FONT.koExtraBold,
-    fontSize: 22,
+  homeMainText: {    fontSize: 22,
     lineHeight: 36,
     color: "#083A5A",
     textAlign: "center",
@@ -1409,15 +1387,11 @@ const styles = StyleSheet.create({
     marginBottom: 22,
     elevation: 3,
   },
-  homeFeatureTitle: {
-    fontFamily: FONT.koExtraBold,
-    fontSize: 21,
+  homeFeatureTitle: {    fontSize: 21,
     color: "#083A5A",
     marginBottom: 12,
   },
-  homeFeatureText: {
-    fontFamily: FONT.koRegular,
-    fontSize: 18,
+  homeFeatureText: {    fontSize: 18,
     lineHeight: 32,
     color: "#164B6A",
   },
@@ -1429,9 +1403,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginBottom: 14,
   },
-  startButtonText: {
-    fontFamily: FONT.koExtraBold,
-    fontSize: 23,
+  startButtonText: {    fontSize: 23,
     color: "#FFFFFF",
   },
   quickRow: {
@@ -1448,9 +1420,7 @@ const styles = StyleSheet.create({
     borderColor: "#BCD7E5",
     marginHorizontal: 5,
   },
-  quickButtonText: {
-    fontFamily: FONT.koExtraBold,
-    fontSize: 17,
+  quickButtonText: {    fontSize: 17,
     color: "#315B73",
   },
   topBar: {
@@ -1472,22 +1442,16 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     marginRight: 12,
   },
-  backIconText: {
-    fontFamily: FONT.enExtraBold,
-    fontSize: 30,
+  backIconText: {    fontSize: 30,
     color: "#083A5A",
   },
   topBarTitleBox: {
     flex: 1,
   },
-  topBarTitle: {
-    fontFamily: FONT.koExtraBold,
-    fontSize: 23,
+  topBarTitle: {    fontSize: 23,
     color: "#083A5A",
   },
-  topBarSubtitle: {
-    fontFamily: FONT.enBold,
-    fontSize: 14,
+  topBarSubtitle: {    fontSize: 14,
     color: "#4A7087",
     marginTop: 2,
   },
@@ -1517,9 +1481,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 15,
     marginBottom: 10,
   },
-  stepBadgeText: {
-    fontFamily: FONT.koExtraBold,
-    fontSize: 16,
+  stepBadgeText: {    fontSize: 16,
     color: "#0B5D83",
   },
   sectionCard: {
@@ -1531,16 +1493,12 @@ const styles = StyleSheet.create({
     borderColor: "#D8E7F0",
     elevation: 2,
   },
-  sectionTitle: {
-    fontFamily: FONT.koExtraBold,
-    fontSize: 22,
+  sectionTitle: {    fontSize: 22,
     lineHeight: 34,
     color: "#083A5A",
     marginBottom: 10,
   },
-  sectionDescription: {
-    fontFamily: FONT.koRegular,
-    fontSize: 17,
+  sectionDescription: {    fontSize: 17,
     lineHeight: 30,
     color: "#315B73",
     marginBottom: 16,
@@ -1551,9 +1509,7 @@ const styles = StyleSheet.create({
     borderRadius: 22,
     borderWidth: 2,
     borderColor: "#BCD7E5",
-    padding: 16,
-    fontFamily: FONT.koRegular,
-    fontSize: 18,
+    padding: 16,    fontSize: 18,
     lineHeight: 32,
     color: "#0B2535",
     marginBottom: 18,
@@ -1573,9 +1529,7 @@ const styles = StyleSheet.create({
     borderColor: "#8FC7DE",
     marginHorizontal: 5,
   },
-  photoButtonText: {
-    fontFamily: FONT.koExtraBold,
-    fontSize: 18,
+  photoButtonText: {    fontSize: 18,
     color: "#0B5D83",
   },
   photoPreviewBox: {
@@ -1592,14 +1546,10 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginBottom: 12,
   },
-  photoPreviewTitle: {
-    fontFamily: FONT.koExtraBold,
-    fontSize: 17,
+  photoPreviewTitle: {    fontSize: 17,
     color: "#083A5A",
   },
-  photoRemoveText: {
-    fontFamily: FONT.koExtraBold,
-    fontSize: 16,
+  photoRemoveText: {    fontSize: 16,
     color: "#B91C1C",
   },
   medicineImageFrame: {
@@ -1618,9 +1568,7 @@ const styles = StyleSheet.create({
     width: "100%",
     height: "100%",
   },
-  photoAnalysisText: {
-    fontFamily: FONT.koRegular,
-    fontSize: 17,
+  photoAnalysisText: {    fontSize: 17,
     lineHeight: 30,
     color: "#083A5A",
   },
@@ -1636,14 +1584,10 @@ const styles = StyleSheet.create({
     padding: 22,
     marginBottom: 16,
   },
-  emptyPhotoIcon: {
-    fontFamily: FONT.enBold,
-    fontSize: 42,
+  emptyPhotoIcon: {    fontSize: 42,
     marginBottom: 10,
   },
-  emptyPhotoText: {
-    fontFamily: FONT.koRegular,
-    fontSize: 17,
+  emptyPhotoText: {    fontSize: 17,
     lineHeight: 30,
     color: "#315B73",
     textAlign: "center",
@@ -1658,9 +1602,7 @@ const styles = StyleSheet.create({
   loadingButton: {
     backgroundColor: "#8AA8B8",
   },
-  mainButtonText: {
-    fontFamily: FONT.koExtraBold,
-    fontSize: 21,
+  mainButtonText: {    fontSize: 21,
     color: "#FFFFFF",
     textAlign: "center",
     paddingHorizontal: 8,
@@ -1673,9 +1615,7 @@ const styles = StyleSheet.create({
     borderWidth: 1.8,
     borderColor: "#BCD7E5",
   },
-  clearButtonText: {
-    fontFamily: FONT.koExtraBold,
-    fontSize: 17,
+  clearButtonText: {    fontSize: 17,
     color: "#315B73",
   },
   summaryBox: {
@@ -1686,16 +1626,12 @@ const styles = StyleSheet.create({
     borderColor: "#8FC7DE",
     marginBottom: 18,
   },
-  summaryTitle: {
-    fontFamily: FONT.koExtraBold,
-    fontSize: 21,
+  summaryTitle: {    fontSize: 21,
     lineHeight: 32,
     color: "#083A5A",
     marginBottom: 10,
   },
-  summaryText: {
-    fontFamily: FONT.koRegular,
-    fontSize: 18,
+  summaryText: {    fontSize: 18,
     lineHeight: 32,
     color: "#083A5A",
   },
@@ -1707,9 +1643,7 @@ const styles = StyleSheet.create({
     borderWidth: 1.8,
     borderColor: "#D8E7F0",
   },
-  infoCardTitle: {
-    fontFamily: FONT.koExtraBold,
-    fontSize: 21,
+  infoCardTitle: {    fontSize: 21,
     lineHeight: 32,
     color: "#083A5A",
     marginBottom: 13,
@@ -1717,9 +1651,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: 2,
     borderBottomColor: "#EFF7FB",
   },
-  infoCardText: {
-    fontFamily: FONT.koRegular,
-    fontSize: 17,
+  infoCardText: {    fontSize: 17,
     lineHeight: 31,
     color: "#17384A",
   },
@@ -1743,9 +1675,7 @@ const styles = StyleSheet.create({
     paddingVertical: 18,
     alignItems: "center",
   },
-  familyButtonText: {
-    fontFamily: FONT.koExtraBold,
-    fontSize: 17,
+  familyButtonText: {    fontSize: 17,
     color: "#FFFFFF",
   },
   alarmButton: {
@@ -1758,9 +1688,7 @@ const styles = StyleSheet.create({
     borderColor: "#BCD7E5",
     marginLeft: 5,
   },
-  alarmButtonText: {
-    fontFamily: FONT.koExtraBold,
-    fontSize: 17,
+  alarmButtonText: {    fontSize: 17,
     color: "#315B73",
   },
   saveButton: {
@@ -1771,9 +1699,7 @@ const styles = StyleSheet.create({
     borderWidth: 1.8,
     borderColor: "#B7E2C5",
   },
-  saveButtonText: {
-    fontFamily: FONT.koExtraBold,
-    fontSize: 17,
+  saveButtonText: {    fontSize: 17,
     color: "#14532D",
   },
   draftCard: {
@@ -1784,24 +1710,18 @@ const styles = StyleSheet.create({
     borderColor: "#BCD7E5",
     marginBottom: 12,
   },
-  draftTitle: {
-    fontFamily: FONT.koExtraBold,
-    fontSize: 18,
+  draftTitle: {    fontSize: 18,
     color: "#083A5A",
     marginBottom: 8,
   },
-  draftMedicine: {
-    fontFamily: FONT.koRegular,
-    fontSize: 17,
+  draftMedicine: {    fontSize: 17,
     lineHeight: 28,
     color: "#17384A",
   },
   mealInputRow: {
     marginBottom: 14,
   },
-  mealInputLabel: {
-    fontFamily: FONT.koExtraBold,
-    fontSize: 17,
+  mealInputLabel: {    fontSize: 17,
     color: "#083A5A",
     marginBottom: 8,
   },
@@ -1811,9 +1731,7 @@ const styles = StyleSheet.create({
     borderWidth: 1.6,
     borderColor: "#BCD7E5",
     paddingVertical: 14,
-    paddingHorizontal: 16,
-    fontFamily: FONT.enBold,
-    fontSize: 20,
+    paddingHorizontal: 16,    fontSize: 20,
     color: "#0B2535",
   },
   planRow: {
@@ -1827,23 +1745,17 @@ const styles = StyleSheet.create({
     borderColor: "#D8E7F0",
   },
   planTime: {
-    width: 68,
-    fontFamily: FONT.enExtraBold,
-    fontSize: 20,
+    width: 68,    fontSize: 20,
     color: "#0B78A6",
   },
   planTextBox: {
     flex: 1,
   },
-  planTitle: {
-    fontFamily: FONT.koExtraBold,
-    fontSize: 16,
+  planTitle: {    fontSize: 16,
     color: "#083A5A",
     marginBottom: 4,
   },
-  planBody: {
-    fontFamily: FONT.koRegular,
-    fontSize: 16,
+  planBody: {    fontSize: 16,
     lineHeight: 26,
     color: "#17384A",
   },
@@ -1855,15 +1767,11 @@ const styles = StyleSheet.create({
     borderColor: "#D8E7F0",
     marginBottom: 14,
   },
-  recordDate: {
-    fontFamily: FONT.enBold,
-    fontSize: 15,
+  recordDate: {    fontSize: 15,
     color: "#0B78A6",
     marginBottom: 8,
   },
-  recordTitle: {
-    fontFamily: FONT.koRegular,
-    fontSize: 17,
+  recordTitle: {    fontSize: 17,
     lineHeight: 29,
     color: "#17384A",
     marginBottom: 14,
@@ -1879,9 +1787,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginRight: 5,
   },
-  recordOpenText: {
-    fontFamily: FONT.koExtraBold,
-    fontSize: 16,
+  recordOpenText: {    fontSize: 16,
     color: "#FFFFFF",
   },
   recordDeleteButton: {
@@ -1894,9 +1800,7 @@ const styles = StyleSheet.create({
     borderColor: "#FECACA",
     marginLeft: 5,
   },
-  recordDeleteText: {
-    fontFamily: FONT.koExtraBold,
-    fontSize: 16,
+  recordDeleteText: {    fontSize: 16,
     color: "#B91C1C",
   },
   reminderCard: {
@@ -1907,21 +1811,15 @@ const styles = StyleSheet.create({
     borderColor: "#D8E7F0",
     marginBottom: 14,
   },
-  reminderTime: {
-    fontFamily: FONT.enExtraBold,
-    fontSize: 26,
+  reminderTime: {    fontSize: 26,
     color: "#0B78A6",
     marginBottom: 8,
   },
-  reminderTitle: {
-    fontFamily: FONT.koExtraBold,
-    fontSize: 18,
+  reminderTitle: {    fontSize: 18,
     color: "#083A5A",
     marginBottom: 6,
   },
-  reminderBody: {
-    fontFamily: FONT.koRegular,
-    fontSize: 17,
+  reminderBody: {    fontSize: 17,
     lineHeight: 29,
     color: "#17384A",
     marginBottom: 12,
@@ -1938,16 +1836,12 @@ const styles = StyleSheet.create({
     fontSize: 42,
     marginBottom: 12,
   },
-  emptyStateTitle: {
-    fontFamily: FONT.koExtraBold,
-    fontSize: 21,
+  emptyStateTitle: {    fontSize: 21,
     color: "#083A5A",
     marginBottom: 8,
     textAlign: "center",
   },
-  emptyStateText: {
-    fontFamily: FONT.koRegular,
-    fontSize: 17,
+  emptyStateText: {    fontSize: 17,
     lineHeight: 29,
     color: "#315B73",
     textAlign: "center",
@@ -1960,9 +1854,7 @@ const styles = StyleSheet.create({
     borderColor: "#B7E2C5",
     marginBottom: 14,
   },
-  noticeText: {
-    fontFamily: FONT.koRegular,
-    fontSize: 16,
+  noticeText: {    fontSize: 16,
     lineHeight: 26,
     color: "#14532D",
   },
@@ -1974,9 +1866,7 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     borderColor: "#8FC7DE",
   },
-  shareNoticeText: {
-    fontFamily: FONT.koRegular,
-    fontSize: 16,
+  shareNoticeText: {    fontSize: 16,
     lineHeight: 28,
     color: "#083A5A",
   },
@@ -1987,15 +1877,11 @@ const styles = StyleSheet.create({
     borderWidth: 1.8,
     borderColor: "#BCD7E5",
   },
-  familyMessageTitle: {
-    fontFamily: FONT.koExtraBold,
-    fontSize: 21,
+  familyMessageTitle: {    fontSize: 21,
     color: "#083A5A",
     marginBottom: 14,
   },
-  familyMessageText: {
-    fontFamily: FONT.koRegular,
-    fontSize: 16,
+  familyMessageText: {    fontSize: 16,
     lineHeight: 30,
     color: "#17384A",
   },
@@ -2022,9 +1908,7 @@ const styles = StyleSheet.create({
     fontSize: 22,
     marginBottom: 2,
   },
-  tabLabel: {
-    fontFamily: FONT.koExtraBold,
-    fontSize: 13,
+  tabLabel: {    fontSize: 13,
     color: "#6B7C8D",
   },
   tabLabelActive: {

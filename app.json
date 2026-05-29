@@ -18,8 +18,8 @@
     "android": {
       "package": "com.medicardai.demo",
       "permissions": [
-        "CAMERA",
-        "READ_MEDIA_IMAGES"
+        "android.permission.CAMERA",
+        "android.permission.READ_MEDIA_IMAGES"
       ],
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
@@ -37,6 +37,11 @@
           "cameraPermission": "약 봉투를 촬영하기 위해 카메라 권한이 필요합니다."
         }
       ]
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "457e3927-7204-4af8-9e69-0ee7e8faafc9"
+      }
+    }
   }
 }
