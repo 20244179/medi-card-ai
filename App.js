@@ -12,9 +12,11 @@ import {
   View,
 } from "react-native";
 
-const APP_NAME = "앱 이름 자리";
+const APP_NAME = "마이닥터";
 const APP_SUBTITLE =
-  "진료실에서 들은 어려운 말을 환자 눈높이에 맞게 쉽게 정리해주는 AI 보조 서비스";
+  "진료실에서 들은 어려운 말을 환자 눈높이에 맞게 쉽게 정리해주는 AI 보조 앱";
+
+const LOGO = require("./assets/mydoctor-logo.png");
 
 const defaultResult = {
   summary:
@@ -40,14 +42,9 @@ export default function App() {
   const [isListening, setIsListening] = useState(false);
   const [voiceMessage, setVoiceMessage] = useState("");
   const [liveTranscript, setLiveTranscript] = useState("");
-  const [voiceDraft, setVoiceDraft] = useState("");
   const [voiceMode, setVoiceMode] = useState("");
-
   const recognitionRef = useRef(null);
-  const finalTranscriptRef = useRef("");
-  const shouldKeepListeningRef = useRef(false);
-  const voiceModeRef = useRef("");
-  const restartTimerRef = useRef(null);
+  const speechBufferRef = useRef("");
 
   const [medicinePhotoUri, setMedicinePhotoUri] = useState("");
   const [medicinePhotoName, setMedicinePhotoName] = useState("");
@@ -55,31 +52,13 @@ export default function App() {
   const [medicineOcrText, setMedicineOcrText] = useState("");
   const [medicineHintType, setMedicineHintType] = useState("");
   const [isPhotoAnalyzing, setIsPhotoAnalyzing] = useState(false);
-  const [photoProgressText, setPhotoProgressText] = useState("");
 
   const [familyMessage, setFamilyMessage] = useState("");
   const [appNotice, setAppNotice] = useState("");
 
-  const showPopup = (title, message) => {
-    if (Platform.OS === "web" && typeof window !== "undefined") {
-      window.alert(`${title}\n\n${message}`);
-      return;
-    }
-
-    Alert.alert(title, message);
-  };
-
-  const normalizeText = (text) => {
-    return String(text || "")
-      .toLowerCase()
-      .replace(/\s+/g, " ")
-      .trim();
-  };
-
   useEffect(() => {
     if (Platform.OS !== "web" || typeof window === "undefined") {
       setSpeechSupported(false);
-      setVoiceMessage("음성 입력은 웹 브라우저에서만 사용할 수 있습니다.");
       return;
     }
 
@@ -97,19 +76,19 @@ export default function App() {
     const recognition = new SpeechRecognition();
     recognition.lang = "ko-KR";
     recognition.interimResults = true;
-    recognition.continuous = true;
+    recognition.continuous = false;
     recognition.maxAlternatives = 1;
 
     recognition.onstart = () => {
       setIsListening(true);
-      setVoiceMessage(
-        "듣는 중입니다. 천천히 말씀하시고, 다 말한 뒤 듣기 중지를 눌러주세요."
-      );
+      setLiveTranscript("");
+      speechBufferRef.current = "";
+      setVoiceMessage("듣는 중입니다. 천천히 말씀해주세요.");
     };
 
     recognition.onresult = (event) => {
-      let interimText = "";
       let finalText = "";
+      let interimText = "";
 
       for (let i = event.resultIndex; i < event.results.length; i += 1) {
         const transcript = event.results[i][0]?.transcript || "";
@@ -123,99 +102,50 @@ export default function App() {
 
       if (interimText.trim()) {
         setLiveTranscript(interimText.trim());
-        setVoiceMessage("말씀을 듣고 있습니다. 계속 말씀하셔도 됩니다.");
+        setVoiceMessage("말씀을 듣고 있습니다. 다 말한 뒤 듣기 중지를 눌러주세요.");
       }
 
       if (finalText.trim()) {
-        finalTranscriptRef.current = `${finalTranscriptRef.current} ${finalText}`.trim();
-        setVoiceDraft(finalTranscriptRef.current);
-        setLiveTranscript("");
-        setVoiceMessage("문장을 인식했습니다. 계속 이어서 말씀하셔도 됩니다.");
+        speechBufferRef.current = `${speechBufferRef.current} ${finalText}`.trim();
+        setLiveTranscript(speechBufferRef.current);
       }
     };
 
     recognition.onerror = (event) => {
+      setIsListening(false);
       setLiveTranscript("");
 
       if (event.error === "not-allowed" || event.error === "service-not-allowed") {
-        shouldKeepListeningRef.current = false;
-        setIsListening(false);
         setVoiceMessage("마이크 권한이 허용되지 않았습니다.");
         showPopup(
           "마이크 권한 필요",
-          "음성 입력을 사용하려면 브라우저의 마이크 권한을 허용해주세요.\n\n주소창 왼쪽 자물쇠 아이콘을 눌러 마이크 권한을 허용한 뒤 다시 시도해주세요."
-        );
-        return;
-      }
-
-      if (event.error === "audio-capture") {
-        shouldKeepListeningRef.current = false;
-        setIsListening(false);
-        setVoiceMessage("마이크를 찾을 수 없습니다.");
-        showPopup(
-          "마이크 오류",
-          "마이크가 연결되어 있는지, 다른 앱에서 마이크를 사용 중인지 확인해주세요."
+          "음성 입력을 사용하려면 브라우저의 마이크 권한을 허용해주세요."
         );
         return;
       }
 
       if (event.error === "no-speech") {
-        if (shouldKeepListeningRef.current) {
-          setVoiceMessage("잠시 말이 끊겼지만 계속 듣고 있습니다.");
-          return;
-        }
-
-        setVoiceMessage("음성이 잘 들리지 않았습니다. 다시 시도해주세요.");
+        setVoiceMessage("음성이 잘 들리지 않았습니다. 조용한 곳에서 다시 말씀해주세요.");
         return;
       }
 
-      if (shouldKeepListeningRef.current) {
-        setVoiceMessage("음성 인식이 잠시 끊겼습니다. 다시 듣고 있습니다.");
-        return;
-      }
-
-      setIsListening(false);
       setVoiceMessage("음성 인식 중 오류가 발생했습니다. 다시 시도해주세요.");
     };
 
     recognition.onend = () => {
-      if (shouldKeepListeningRef.current) {
-        setVoiceMessage("잠시 끊겨 다시 듣는 중입니다. 계속 말씀해주세요.");
+      const transcript = speechBufferRef.current.trim();
 
-        if (restartTimerRef.current) {
-          clearTimeout(restartTimerRef.current);
-        }
-
-        restartTimerRef.current = setTimeout(() => {
-          try {
-            recognitionRef.current?.start();
-          } catch (error) {
-            setIsListening(false);
-            setVoiceMessage(
-              "음성 입력이 일시적으로 중단되었습니다. 다시 음성 입력 버튼을 눌러주세요."
-            );
-          }
-        }, 400);
-
-        return;
-      }
-
-      setIsListening(false);
-      setLiveTranscript("");
-
-      const finalTranscript = finalTranscriptRef.current.trim();
-
-      if (finalTranscript) {
+      if (transcript) {
         setUserInput((prev) => {
-          if (voiceModeRef.current === "replace") {
-            return finalTranscript;
+          if (voiceMode === "replace") {
+            return transcript;
           }
 
           if (prev.trim()) {
-            return `${prev.trim()} ${finalTranscript}`;
+            return `${prev.trim()} ${transcript}`;
           }
 
-          return finalTranscript;
+          return transcript;
         });
 
         setVoiceMessage("음성 입력이 입력창에 반영되었습니다.");
@@ -223,116 +153,59 @@ export default function App() {
         setVoiceMessage("음성 입력이 종료되었습니다. 인식된 문장이 없습니다.");
       }
 
-      setVoiceDraft("");
-      finalTranscriptRef.current = "";
-      voiceModeRef.current = "";
+      setIsListening(false);
+      setLiveTranscript("");
       setVoiceMode("");
+      speechBufferRef.current = "";
     };
 
     recognitionRef.current = recognition;
     setSpeechSupported(true);
+  }, [voiceMode]);
 
-    return () => {
-      if (restartTimerRef.current) {
-        clearTimeout(restartTimerRef.current);
-      }
+  const showPopup = (title, message) => {
+    if (Platform.OS === "web" && typeof window !== "undefined") {
+      window.alert(`${title}\n\n${message}`);
+      return;
+    }
 
+    Alert.alert(title, message);
+  };
+
+  const resetAllAndGoHome = () => {
+    if (isListening && recognitionRef.current) {
       try {
-        recognition.stop();
+        recognitionRef.current.stop();
       } catch (error) {}
-    };
-  }, []);
-
-  const requestMicrophonePermission = async () => {
-    if (
-      Platform.OS !== "web" ||
-      typeof navigator === "undefined" ||
-      !navigator.mediaDevices?.getUserMedia
-    ) {
-      return true;
     }
 
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      stream.getTracks().forEach((track) => track.stop());
-      return true;
-    } catch (error) {
-      showPopup(
-        "마이크 권한 필요",
-        "음성 입력을 사용하려면 마이크 권한을 허용해야 합니다.\n\n브라우저 주소창 왼쪽 자물쇠 아이콘에서 마이크 권한을 허용해주세요."
-      );
-      setVoiceMessage("마이크 권한이 허용되지 않았습니다.");
-      return false;
-    }
+    setScreen("home");
+    setUserInput("");
+    setResult(defaultResult);
+    setIsLoading(false);
+
+    setIsListening(false);
+    setVoiceMessage("");
+    setLiveTranscript("");
+    setVoiceMode("");
+    speechBufferRef.current = "";
+
+    setMedicinePhotoUri("");
+    setMedicinePhotoName("");
+    setMedicinePhotoAnalysis("");
+    setMedicineOcrText("");
+    setMedicineHintType("");
+    setIsPhotoAnalyzing(false);
+
+    setFamilyMessage("");
+    setAppNotice("");
   };
 
-  const startVoiceInput = async (mode) => {
-    if (!speechSupported || !recognitionRef.current) {
-      showPopup(
-        "음성 입력 안내",
-        "이 브라우저에서는 음성 입력을 사용할 수 없습니다.\n\nChrome 또는 Edge에서 다시 시도해주세요."
-      );
-      return;
-    }
-
-    if (isListening) {
-      showPopup(
-        "음성 입력 중",
-        "이미 듣는 중입니다. 먼저 듣기 중지를 누른 뒤 다시 선택해주세요."
-      );
-      return;
-    }
-
-    const hasPermission = await requestMicrophonePermission();
-
-    if (!hasPermission) {
-      return;
-    }
-
-    try {
-      if (restartTimerRef.current) {
-        clearTimeout(restartTimerRef.current);
-      }
-
-      if (mode === "replace") {
-        setUserInput("");
-      }
-
-      voiceModeRef.current = mode;
-      setVoiceMode(mode);
-      finalTranscriptRef.current = "";
-      setVoiceDraft("");
-      setLiveTranscript("");
-      shouldKeepListeningRef.current = true;
-
-      recognitionRef.current.start();
-    } catch (error) {
-      setVoiceMessage("음성 입력을 다시 시작하려면 잠시 후 눌러주세요.");
-    }
-  };
-
-  const stopVoiceInput = () => {
-    shouldKeepListeningRef.current = false;
-
-    if (restartTimerRef.current) {
-      clearTimeout(restartTimerRef.current);
-    }
-
-    try {
-      recognitionRef.current?.stop();
-    } catch (error) {
-      setIsListening(false);
-      setVoiceMessage("음성 입력을 종료했습니다.");
-    }
-  };
-
-  const isMobileBrowser = () => {
-    if (Platform.OS !== "web" || typeof navigator === "undefined") {
-      return false;
-    }
-
-    const userAgent = navigator.userAgent || navigator.vendor || "";
-    return /android|iphone|ipad|ipod|windows phone|mobile/i.test(userAgent);
+  const normalizeText = (text) => {
+    return String(text || "")
+      .toLowerCase()
+      .replace(/\s+/g, " ")
+      .trim();
   };
 
   const detectMedicineType = (text = "") => {
@@ -368,25 +241,32 @@ export default function App() {
       "당뇨",
       "당뇨병",
       "혈당",
+      "혈당조절",
+      "혈당 조절",
       "인슐린",
       "메트포르민",
       "다이아벡스",
       "글루파",
       "글루파850",
+      "글루파 850",
       "glupa",
       "glupa850",
       "glupa 850",
       "다이아미크론",
       "디아미크론",
+      "다이아미크론엠알",
+      "디아미크론엠알",
       "diamicron",
       "diamicronmr",
       "diamicron mr",
-      "diamicro",
-      "diami",
+      "dia micron",
+      "dia mi cron",
       "gliclazide",
       "gliclazide mr",
       "metformin",
       "insulin",
+      "glucose",
+      "diabetes",
     ];
 
     const bpKeywords = [
@@ -404,6 +284,8 @@ export default function App() {
       "cozaar",
       "valsartan",
       "telmisartan",
+      "blood pressure",
+      "hypertension",
     ];
 
     const refluxKeywords = [
@@ -427,109 +309,157 @@ export default function App() {
       "pantoprazole",
       "lansoprazole",
       "rabeprazole",
+      "reflux",
     ];
 
-    if (includesAny(diabetesKeywords)) {
-      return "diabetes";
-    }
-
-    if (includesAny(bpKeywords)) {
-      return "bloodPressure";
-    }
-
-    if (includesAny(refluxKeywords)) {
-      return "reflux";
-    }
+    if (includesAny(diabetesKeywords)) return "diabetes";
+    if (includesAny(bpKeywords)) return "bloodPressure";
+    if (includesAny(refluxKeywords)) return "reflux";
 
     return "unknown";
   };
 
   const getMedicineAnalysisText = (type) => {
-    if (type === "reflux") {
+    if (type === "diabetes") {
       return {
-        title: "위산 억제제 또는 역류성 식도염 관련 약으로 추정됩니다.",
+        title: "당뇨약 또는 혈당 조절 관련 단서가 확인되었습니다.",
         message:
-          "약 봉투에서 위산 억제제, 식전 복용, 역류성 식도염과 관련된 단서가 확인되었습니다. 약 봉투에 식전 복용 안내가 있다면 보통 식사 30분 전 공복 복용이 중요합니다. 단, 정확한 약 이름과 복용법은 처방전과 약 봉투를 함께 확인해야 합니다.",
+          "당뇨약은 약마다 복용 시간이 다를 수 있으므로 약 봉투의 복용법을 꼭 확인해야 합니다. 식은땀, 손떨림, 심한 어지러움 같은 저혈당 증상이 생기면 주의가 필요합니다.",
       };
     }
 
     if (type === "bloodPressure") {
       return {
-        title: "혈압약 관련 약으로 추정됩니다.",
+        title: "혈압약 관련 단서가 확인되었습니다.",
         message:
-          "약 봉투에서 혈압약 또는 고혈압 관련 단서가 확인되었습니다. 혈압약은 증상이 없어도 매일 같은 시간에 꾸준히 복용하는 것이 중요하며, 임의로 중단하면 혈압이 다시 올라갈 수 있습니다.",
+          "혈압약은 증상이 없어도 매일 같은 시간에 꾸준히 복용하는 것이 중요합니다. 임의로 중단하면 혈압이 다시 올라갈 수 있습니다.",
       };
     }
 
-    if (type === "diabetes") {
+    if (type === "reflux") {
       return {
-        title: "당뇨약 또는 혈당 조절 관련 약으로 추정됩니다.",
+        title: "위산 억제제 또는 역류성 식도염 관련 단서가 확인되었습니다.",
         message:
-          "약 봉투에서 GLUPA, DiAMiCRON 등 당뇨약 또는 혈당 조절 관련 단서가 확인되었습니다. 당뇨약은 약마다 복용 시간이 다를 수 있으므로 약 봉투의 복용법을 꼭 확인해야 합니다. 식은땀, 손떨림, 심한 어지러움 같은 저혈당 증상이 생기면 주의가 필요합니다.",
+          "위산을 줄여주는 약은 보통 식사 30분 전 공복 복용이 중요한 경우가 많습니다. 정확한 복용법은 약 봉투와 처방전을 함께 확인해야 합니다.",
       };
     }
 
     return {
-      title: "약 봉투 사진이 첨부되었습니다.",
+      title: "약 봉투 글자를 정확히 확인하기 어렵습니다.",
       message:
-        "사진을 확인할 수 없습니다. 사진이 흐리거나 글자가 작으면 분석이 어려울 수 있으므로, 약 이름과 복용법이 잘 보이게 촬영하는 것이 좋습니다.",
+        "약 이름과 복용 시간이 잘 보이도록 다시 촬영하거나, 진료 내용을 직접 입력해주세요.",
     };
   };
 
-  const runMedicinePhotoAnalysis = async (imageUri, fileName) => {
-    setIsPhotoAnalyzing(true);
-    setMedicinePhotoAnalysis("");
-    setMedicineOcrText("");
-    setMedicineHintType("");
-    setPhotoProgressText("약 봉투 사진을 분석하는 중입니다...");
+  const extractTextWithTesseract = async (imageUri) => {
+    try {
+      const TesseractModule = await import("tesseract.js");
+      const Tesseract = TesseractModule.default || TesseractModule;
+      const recognize = Tesseract.recognize;
+
+      if (!recognize) {
+        return "";
+      }
+
+      const result = await recognize(imageUri, "kor+eng");
+      return result?.data?.text || "";
+    } catch (error) {
+      return "";
+    }
+  };
+
+  const startVoiceInput = () => {
+    if (!speechSupported || !recognitionRef.current) {
+      showPopup(
+        "음성 입력 안내",
+        "이 브라우저에서는 음성 입력을 사용할 수 없습니다. Chrome 또는 Edge에서 다시 시도해주세요."
+      );
+      return;
+    }
 
     try {
-      const Tesseract = await import("tesseract.js");
+      setVoiceMessage("");
+      setLiveTranscript("");
+      speechBufferRef.current = "";
+      recognitionRef.current.start();
+    } catch (error) {
+      setVoiceMessage("음성 입력을 다시 시작하려면 잠시 후 눌러주세요.");
+    }
+  };
 
-      const ocrResult = await Tesseract.recognize(imageUri, "kor+eng", {
-        logger: (m) => {
-          if (m.status === "recognizing text" && typeof m.progress === "number") {
-            const percent = Math.round(m.progress * 100);
-            setPhotoProgressText(`약 봉투 사진을 분석하는 중입니다... ${percent}%`);
-          }
-        },
-      });
+  const startVoiceWithMode = (mode) => {
+    if (mode === "replace") {
+      setUserInput("");
+    }
 
-      const extractedText = ocrResult?.data?.text || "";
-      const type = detectMedicineType(`${extractedText} ${fileName}`);
+    setVoiceMode(mode);
+    setTimeout(() => startVoiceInput(), 0);
+  };
+
+  const stopVoiceInput = () => {
+    try {
+      recognitionRef.current?.stop();
+    } catch (error) {
+      setIsListening(false);
+      setVoiceMessage("음성 입력을 종료했습니다.");
+    }
+  };
+
+  const isMobileBrowser = () => {
+    if (Platform.OS !== "web" || typeof navigator === "undefined") {
+      return false;
+    }
+
+    const userAgent = navigator.userAgent || navigator.vendor || "";
+    return /android|iphone|ipad|ipod|windows phone|mobile/i.test(userAgent);
+  };
+
+  const analyzeMedicinePhoto = async (imageUri, photoName = "") => {
+    setIsPhotoAnalyzing(true);
+    setMedicinePhotoAnalysis("");
+    setMedicineHintType("");
+    setMedicineOcrText("");
+    setAppNotice("");
+
+    try {
+      const extractedText = await extractTextWithTesseract(imageUri);
+
+      setMedicineOcrText(extractedText);
+
+      const type = detectMedicineType(
+        `${extractedText} ${photoName} ${userInput}`
+      );
       const analysis = getMedicineAnalysisText(type);
 
-      setMedicineOcrText(extractedText.trim());
       setMedicineHintType(type);
       setMedicinePhotoAnalysis(`${analysis.title}\n${analysis.message}`);
     } catch (error) {
-      const type = detectMedicineType(`${fileName}`);
+      const type = detectMedicineType(`${photoName} ${userInput}`);
       const analysis = getMedicineAnalysisText(type);
 
-      setMedicineOcrText("");
       setMedicineHintType(type);
-      setMedicinePhotoAnalysis(`사진 분석을 완료했습니다.\n${analysis.message}`);
+      setMedicinePhotoAnalysis(`${analysis.title}\n${analysis.message}`);
     } finally {
       setIsPhotoAnalyzing(false);
-      setPhotoProgressText("");
     }
   };
 
   const processMedicinePhotoFile = (file) => {
-    if (!file) {
-      return;
-    }
+    if (!file) return;
 
     const reader = new FileReader();
     const fileName = file.name || "medicine_bag_photo.jpg";
 
     setMedicinePhotoName(fileName);
+    setMedicinePhotoAnalysis("");
+    setMedicineOcrText("");
+    setMedicineHintType("");
     setAppNotice("");
 
     reader.onload = () => {
       const imageDataUrl = reader.result;
       setMedicinePhotoUri(imageDataUrl);
-      runMedicinePhotoAnalysis(imageDataUrl, fileName);
+      analyzeMedicinePhoto(imageDataUrl, fileName);
     };
 
     reader.readAsDataURL(file);
@@ -543,8 +473,8 @@ export default function App() {
 
     if (mode === "camera" && !isMobileBrowser()) {
       showPopup(
-        "카메라 촬영 불가",
-        "현재 기기에서는 카메라 촬영을 사용할 수 없습니다.\n\n휴대폰에서 촬영하기를 이용하거나, 사진 선택으로 약 봉투 이미지를 첨부해주세요."
+        "카메라 촬영 안내",
+        "현재 기기에서는 바로 촬영을 사용할 수 없습니다.\n\n휴대폰에서는 촬영하기를 이용할 수 있고, 컴퓨터에서는 사진 선택으로 약 봉투 이미지를 첨부해주세요."
       );
       return;
     }
@@ -572,41 +502,10 @@ export default function App() {
     setMedicineOcrText("");
     setMedicineHintType("");
     setIsPhotoAnalyzing(false);
-    setPhotoProgressText("");
     setAppNotice("");
   };
 
   const buildResultByType = (type) => {
-    if (type === "reflux") {
-      return {
-        summary:
-          "역류성 식도염 또는 위산 관련 약으로 보이며, 위산 억제제는 식전 30분 복용 여부를 약 봉투에서 확인하는 것이 중요합니다.",
-        disease:
-          "역류성 식도염은 위에 있는 음식물이나 위산이 식도로 거꾸로 올라와서 가슴이 쓰리거나 신물이 올라오는 병이에요. 약을 잘 드시고 생활습관을 조절하면 대부분 증상이 좋아질 수 있어요.",
-        medicine:
-          "위산을 줄여주는 약, 즉 PPI 계열 약일 가능성이 있습니다. 이 약은 보통 식사 30분 전 공복에 복용할 때 효과가 좋습니다. 다만 정확한 복용 시간은 약 봉투와 처방전을 우선 확인해주세요.",
-        caution:
-          "매운 음식, 카페인(커피·콜라), 기름진 음식, 술은 피해주세요. 식사 후 2시간 동안은 눕지 마시고, 잠자기 3시간 전에는 음식을 드시지 않는 것이 좋아요.",
-        hospital:
-          "한 달 뒤에도 증상이 계속되거나 더 심해지면 병원에 다시 방문해야 해요. 피를 토하거나, 검은 변을 보거나, 삼키기 힘든 증상이 생기면 예약일까지 기다리지 말고 빨리 진료를 받는 것이 좋아요.",
-      };
-    }
-
-    if (type === "bloodPressure") {
-      return {
-        summary:
-          "혈압약 관련 단서가 확인되었으며, 증상이 없어도 매일 같은 시간에 꾸준히 복용하는 것이 중요합니다.",
-        disease:
-          "고혈압은 혈관 안의 압력이 계속 높은 상태예요. 당장 증상이 없더라도 오래 지속되면 심장, 뇌혈관, 콩팥에 부담을 줄 수 있어서 꾸준한 관리가 중요해요.",
-        medicine:
-          "혈압약은 매일 같은 시간에 꾸준히 드시는 것이 중요해요. 증상이 없다고 임의로 끊으면 혈압이 다시 올라갈 수 있습니다. 어지러움이나 심한 부종 같은 증상이 있으면 병원에 문의해주세요.",
-        caution:
-          "짠 음식은 줄이고, 규칙적인 운동과 체중 관리가 도움이 돼요. 집에서 혈압을 재서 기록하면 진료 때 도움이 됩니다.",
-        hospital:
-          "심한 두통, 가슴통증, 숨참, 한쪽 팔다리 마비, 말이 어눌해지는 증상이 있으면 바로 진료를 받아야 해요. 혈압이 계속 높게 나오면 예약일 전이라도 병원에 문의해주세요.",
-      };
-    }
-
     if (type === "diabetes") {
       return {
         summary:
@@ -622,6 +521,36 @@ export default function App() {
       };
     }
 
+    if (type === "bloodPressure") {
+      return {
+        summary:
+          "혈압약 관련 단서가 확인되었으며, 증상이 없어도 매일 같은 시간에 꾸준히 복용하는 것이 중요합니다.",
+        disease:
+          "고혈압은 혈관 안의 압력이 계속 높은 상태예요. 당장 증상이 없더라도 오래 지속되면 심장, 뇌혈관, 콩팥에 부담을 줄 수 있어서 꾸준한 관리가 중요해요.",
+        medicine:
+          "혈압약은 매일 같은 시간에 꾸준히 드시는 것이 중요해요. 증상이 없다고 임의로 끊으면 혈압이 다시 올라갈 수 있습니다.",
+        caution:
+          "짠 음식은 줄이고, 규칙적인 운동과 체중 관리가 도움이 돼요. 집에서 혈압을 재서 기록하면 진료 때 도움이 됩니다.",
+        hospital:
+          "심한 두통, 가슴통증, 숨참, 한쪽 팔다리 마비, 말이 어눌해지는 증상이 있으면 바로 진료를 받아야 해요.",
+      };
+    }
+
+    if (type === "reflux") {
+      return {
+        summary:
+          "역류성 식도염 또는 위산 관련 단서가 확인되며, 위산 억제제는 식전 30분 복용 여부를 약 봉투에서 확인하는 것이 중요합니다.",
+        disease:
+          "역류성 식도염은 위에 있는 음식물이나 위산이 식도로 거꾸로 올라와서 가슴이 쓰리거나 신물이 올라오는 병이에요. 약을 잘 드시고 생활습관을 조절하면 대부분 증상이 좋아질 수 있어요.",
+        medicine:
+          "위산을 줄여주는 약은 보통 식사 30분 전 공복에 복용할 때 효과가 좋습니다. 다만 정확한 복용 시간은 약 봉투와 처방전을 우선 확인해주세요.",
+        caution:
+          "매운 음식, 카페인, 기름진 음식, 술은 피해주세요. 식사 후 2시간 동안은 눕지 마시고, 잠자기 3시간 전에는 음식을 드시지 않는 것이 좋아요.",
+        hospital:
+          "한 달 뒤에도 증상이 계속되거나 더 심해지면 병원에 다시 방문해야 해요. 피를 토하거나, 검은 변을 보거나, 삼키기 힘든 증상이 생기면 빨리 진료를 받는 것이 좋아요.",
+      };
+    }
+
     if (medicinePhotoUri && !userInput.trim()) {
       return {
         summary:
@@ -634,7 +563,7 @@ export default function App() {
         caution:
           "사진만으로 약을 임의로 판단하거나 복용법을 바꾸면 안 됩니다. 약 이름이 헷갈리거나 복용 시간을 잊은 경우에는 약국이나 병원에 확인하는 것이 안전합니다.",
         hospital:
-          "약을 먹은 뒤 두드러기, 호흡곤란, 심한 어지러움, 입술이나 얼굴이 붓는 증상이 생기면 즉시 진료를 받아야 합니다. 약을 잘못 먹었다고 생각되면 병원이나 약국에 문의해주세요.",
+          "약을 먹은 뒤 두드러기, 호흡곤란, 심한 어지러움, 입술이나 얼굴이 붓는 증상이 생기면 즉시 진료를 받아야 합니다.",
       };
     }
 
@@ -648,7 +577,7 @@ export default function App() {
             medicinePhotoAnalysis ||
             "약 봉투의 약 이름과 복용 시간을 확인한 뒤 처방받은 용법과 용량에 맞춰 복용해야 합니다."
           }`
-        : "약은 처방받은 용법과 용량에 맞춰 복용해야 해요. 식전, 식후, 자기 전 등 복용 시간이 다를 수 있으므로 약 봉투나 처방전을 꼭 확인해주세요. 약을 임의로 끊거나 두 배로 먹는 것은 피해야 해요.",
+        : "약은 처방받은 용법과 용량에 맞춰 복용해야 해요. 식전, 식후, 자기 전 등 복용 시간이 다를 수 있으므로 약 봉투나 처방전을 꼭 확인해주세요.",
       caution:
         "생활습관 관리나 음식 조절에 대한 설명을 들었다면 잘 지키는 것이 좋아요. 증상이 갑자기 심해지거나 평소와 다른 증상이 생기면 병원에 문의해주세요.",
       hospital:
@@ -677,7 +606,9 @@ export default function App() {
     setAppNotice("");
 
     setTimeout(() => {
-      const typeFromText = detectMedicineType(`${userInput} ${medicineOcrText}`);
+      const typeFromText = detectMedicineType(
+        `${userInput} ${medicineOcrText} ${medicinePhotoName}`
+      );
       const finalType =
         medicineHintType && medicineHintType !== "unknown"
           ? medicineHintType
@@ -690,12 +621,6 @@ export default function App() {
   };
 
   const handleClear = () => {
-    shouldKeepListeningRef.current = false;
-
-    if (restartTimerRef.current) {
-      clearTimeout(restartTimerRef.current);
-    }
-
     if (isListening && recognitionRef.current) {
       try {
         recognitionRef.current.stop();
@@ -704,20 +629,18 @@ export default function App() {
 
     setUserInput("");
     setResult(defaultResult);
+    setIsLoading(false);
+    setIsListening(false);
     setVoiceMessage("");
     setLiveTranscript("");
-    setVoiceDraft("");
     setVoiceMode("");
-    voiceModeRef.current = "";
-    finalTranscriptRef.current = "";
-    setIsListening(false);
+    speechBufferRef.current = "";
     setMedicinePhotoUri("");
     setMedicinePhotoName("");
     setMedicinePhotoAnalysis("");
     setMedicineOcrText("");
     setMedicineHintType("");
     setIsPhotoAnalyzing(false);
-    setPhotoProgressText("");
     setFamilyMessage("");
     setAppNotice("");
     setScreen("input");
@@ -761,7 +684,6 @@ ${photoLine}
           title: "진료 내용 요약",
           text: message,
         });
-        setAppNotice("가족에게 공유할 수 있는 창을 열었습니다.");
         return;
       }
 
@@ -780,7 +702,7 @@ ${photoLine}
   const handleMedicineAlarm = () => {
     showPopup(
       "약 알림 설정",
-      "약 알림 설정 기능은 추후 구현 예정입니다. 현재는 버튼 UI만 먼저 추가했습니다."
+      "약 알림 기능은 다음 단계에서 설정할 수 있습니다. 현재는 복약 시간 설정 화면으로 연결될 예정입니다."
     );
   };
 
@@ -799,9 +721,13 @@ ${photoLine}
           <Text style={styles.topBarSubtitle}>{APP_NAME}</Text>
         </View>
 
-        <View style={styles.logoMini}>
-          <Text style={styles.logoMiniText}>로고</Text>
-        </View>
+        <TouchableOpacity
+          style={styles.logoMini}
+          onPress={resetAllAndGoHome}
+          activeOpacity={0.82}
+        >
+          <Image source={LOGO} style={styles.logoMiniImage} resizeMode="contain" />
+        </TouchableOpacity>
       </View>
     );
   };
@@ -810,19 +736,16 @@ ${photoLine}
     return (
       <View style={styles.homeWrap}>
         <View style={styles.homeCard}>
-          <View style={styles.logoBox}>
-            <Text style={styles.logoText}>로고 자리</Text>
-          </View>
+          <Image source={LOGO} style={styles.homeLogoImage} resizeMode="contain" />
 
           <Text style={styles.appName}>{APP_NAME}</Text>
           <Text style={styles.appSubtitle}>{APP_SUBTITLE}</Text>
 
           <View style={styles.homeFeatureBox}>
             <Text style={styles.homeFeatureTitle}>이 앱으로 할 수 있는 일</Text>
-            <Text style={styles.homeFeatureText}>✓ 의사 선생님 말을 음성으로 적기</Text>
-            <Text style={styles.homeFeatureText}>✓ 약 봉투 사진을 함께 넣기</Text>
             <Text style={styles.homeFeatureText}>✓ 어려운 진료 내용을 쉽게 보기</Text>
             <Text style={styles.homeFeatureText}>✓ 가족에게 요약문 보내기</Text>
+            <Text style={styles.homeFeatureText}>✓ 약 알림 시간 설정하기</Text>
           </View>
 
           <TouchableOpacity
@@ -858,8 +781,8 @@ ${photoLine}
               textAlignVertical="top"
               value={userInput}
               onChangeText={setUserInput}
-              placeholder="예: 속 쓰림 때문에 병원에 갔어요. 역류성 식도염이라고 들었고, 약은 식사 전에 먹으라고 하셨어요."
-              placeholderTextColor="#7C8797"
+              placeholder="예: 당뇨 때문에 병원에 갔고 약을 받았어요. 식후에 먹으라고 하셨어요."
+              placeholderTextColor="#6B7C8D"
             />
 
             <View style={styles.voicePanel}>
@@ -867,20 +790,20 @@ ${photoLine}
                 <Text style={styles.voiceTitle}>음성으로 입력하기</Text>
                 {voiceMode ? (
                   <Text style={styles.voiceModeBadge}>
-                    {voiceMode === "append" ? "이어 말하기" : "새로 말하기"}
+                    {voiceMode === "append" ? "이어 말하기" : "처음부터 말하기"}
                   </Text>
                 ) : null}
               </View>
 
               <Text style={styles.voiceDescription}>
-                천천히 말씀하셔도 됩니다. 다 말한 뒤에는 반드시 ‘듣기 중지’를 눌러주세요.
+                천천히 말씀하셔도 됩니다. 다 말한 뒤에는 ‘듣기 중지’를 눌러주세요.
               </Text>
 
               {!isListening ? (
                 <View style={styles.voiceButtonRow}>
                   <TouchableOpacity
                     style={styles.voiceStartButton}
-                    onPress={() => startVoiceInput("append")}
+                    onPress={() => startVoiceWithMode("append")}
                   >
                     <Text style={styles.voiceStartButtonText}>🎤 이어 말하기</Text>
                     <Text style={styles.voiceSubText}>기존 내용 뒤에 추가</Text>
@@ -888,7 +811,7 @@ ${photoLine}
 
                   <TouchableOpacity
                     style={styles.voiceReplaceButton}
-                    onPress={() => startVoiceInput("replace")}
+                    onPress={() => startVoiceWithMode("replace")}
                   >
                     <Text style={styles.voiceReplaceButtonText}>🔄 처음부터 말하기</Text>
                     <Text style={styles.voiceSubText}>입력창을 비우고 시작</Text>
@@ -912,17 +835,8 @@ ${photoLine}
                     </View>
                   ) : null}
 
-                  {voiceDraft ? (
-                    <View style={styles.transcriptBox}>
-                      <Text style={styles.transcriptLabel}>지금까지 적힌 내용</Text>
-                      <Text style={styles.transcriptText}>{voiceDraft}</Text>
-                    </View>
-                  ) : null}
-
                   <TouchableOpacity style={styles.stopButton} onPress={stopVoiceInput}>
-                    <Text style={styles.stopButtonText}>
-                      ⏹ 듣기 중지하고 입력하기
-                    </Text>
+                    <Text style={styles.stopButtonText}>⏹ 듣기 중지하고 입력하기</Text>
                   </TouchableOpacity>
                 </View>
               )}
@@ -976,9 +890,9 @@ ${photoLine}
                   />
                 </View>
 
-                {isPhotoAnalyzing || photoProgressText ? (
+                {isPhotoAnalyzing ? (
                   <Text style={styles.photoAnalysisText}>
-                    {photoProgressText || "약 봉투 사진을 분석하는 중입니다..."}
+                    약 봉투 글자를 확인하고 있습니다.{"\n"}잠시만 기다려주세요.
                   </Text>
                 ) : null}
 
@@ -1004,7 +918,9 @@ ${photoLine}
             disabled={isLoading}
           >
             <Text style={styles.mainButtonText}>
-              {isLoading ? "정리하는 중입니다..." : "AI로 쉽게 정리하기"}
+              {isLoading
+                ? "진료 내용을 쉬운 설명 카드로 정리하고 있습니다."
+                : "AI로 쉽게 정리하기"}
             </Text>
           </TouchableOpacity>
 
@@ -1066,7 +982,7 @@ ${photoLine}
           </View>
 
           <TouchableOpacity style={styles.familyButtonLarge} onPress={handleNotifyFamily}>
-            <Text style={styles.familyButtonText}>공유하기 / 복사하기</Text>
+            <Text style={styles.familyButtonText}>공유하기 / 다시 보내기</Text>
           </TouchableOpacity>
         </ScrollView>
       </View>
@@ -1075,12 +991,17 @@ ${photoLine}
 
   return (
     <View style={styles.page}>
-      <View style={styles.webAppFrame}>
-        {screen === "home" && renderHomeScreen()}
-        {screen === "input" && renderInputScreen()}
-        {screen === "result" && renderResultScreen()}
-        {screen === "share" && renderShareScreen()}
-      </View>
+      <KeyboardAvoidingView
+        style={styles.keyboardView}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+      >
+        <View style={styles.webAppFrame}>
+          {screen === "home" && renderHomeScreen()}
+          {screen === "input" && renderInputScreen()}
+          {screen === "result" && renderResultScreen()}
+          {screen === "share" && renderShareScreen()}
+        </View>
+      </KeyboardAvoidingView>
     </View>
   );
 }
@@ -1099,10 +1020,16 @@ function InfoCard({ icon, title, text }) {
 const styles = StyleSheet.create({
   page: {
     flex: 1,
-    backgroundColor: "#E7EEF7",
+    backgroundColor: "#DCECF4",
     alignItems: "center",
     justifyContent: "center",
-    padding: 24,
+    padding: 22,
+  },
+
+  keyboardView: {
+    width: "100%",
+    alignItems: "center",
+    justifyContent: "center",
   },
 
   webAppFrame: {
@@ -1110,12 +1037,12 @@ const styles = StyleSheet.create({
     maxWidth: 980,
     height: "92vh",
     minHeight: 720,
-    backgroundColor: "#F5F7FA",
+    backgroundColor: "#F4F8FB",
     borderRadius: 34,
     overflow: "hidden",
-    shadowColor: "#000",
-    shadowOpacity: 0.16,
-    shadowRadius: 28,
+    shadowColor: "#0B3A59",
+    shadowOpacity: 0.18,
+    shadowRadius: 26,
     shadowOffset: { width: 0, height: 14 },
   },
 
@@ -1123,53 +1050,44 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    padding: 34,
-    backgroundColor: "#EEF6FF",
+    padding: 22,
+    backgroundColor: "#F4F8FB",
   },
 
   homeCard: {
     width: "100%",
-    maxWidth: 540,
+    maxWidth: 560,
     backgroundColor: "#FFFFFF",
-    borderRadius: 34,
-    padding: 36,
-    alignItems: "center",
-    shadowColor: "#000",
-    shadowOpacity: 0.08,
-    shadowRadius: 14,
-    shadowOffset: { width: 0, height: 6 },
-  },
-
-  logoBox: {
-    width: 116,
-    height: 116,
     borderRadius: 32,
-    backgroundColor: "#DBEAFE",
+    padding: 28,
     alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 22,
-    borderWidth: 2,
-    borderColor: "#93C5FD",
+    borderWidth: 1.5,
+    borderColor: "#D8E7F0",
+    shadowColor: "#0B3A59",
+    shadowOpacity: 0.11,
+    shadowRadius: 14,
+    shadowOffset: { width: 0, height: 7 },
   },
 
-  logoText: {
-    fontSize: 20,
-    fontWeight: "900",
-    color: "#1E3A8A",
+  homeLogoImage: {
+    width: 200,
+    height: 200,
+    marginBottom: 4,
   },
 
   appName: {
-    fontSize: 36,
+    fontSize: 28,
     fontWeight: "900",
-    color: "#111827",
-    marginBottom: 14,
+    color: "#083A5A",
+    marginBottom: 12,
     textAlign: "center",
+    letterSpacing: -0.5,
   },
 
   appSubtitle: {
-    fontSize: 20,
-    lineHeight: 32,
-    color: "#374151",
+    fontSize: 19,
+    lineHeight: 30,
+    color: "#315B73",
     textAlign: "center",
     marginBottom: 24,
     fontWeight: "700",
@@ -1177,34 +1095,38 @@ const styles = StyleSheet.create({
 
   homeFeatureBox: {
     width: "100%",
-    backgroundColor: "#ECFDF5",
+    backgroundColor: "#EFF7FB",
     borderRadius: 22,
-    padding: 22,
+    padding: 20,
     borderWidth: 1.5,
-    borderColor: "#A7F3D0",
+    borderColor: "#B8D8E8",
     marginBottom: 24,
   },
 
   homeFeatureTitle: {
-    fontSize: 22,
+    fontSize: 21,
     fontWeight: "900",
-    color: "#065F46",
+    color: "#083A5A",
     marginBottom: 12,
   },
 
   homeFeatureText: {
     fontSize: 19,
-    lineHeight: 34,
-    color: "#064E3B",
+    lineHeight: 33,
+    color: "#164B6A",
     fontWeight: "800",
   },
 
   startButton: {
     width: "100%",
-    backgroundColor: "#2563EB",
+    backgroundColor: "#0B78A6",
     borderRadius: 22,
     paddingVertical: 22,
     alignItems: "center",
+    shadowColor: "#0B3A59",
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 5 },
   },
 
   startButtonText: {
@@ -1215,34 +1137,34 @@ const styles = StyleSheet.create({
 
   appScreen: {
     flex: 1,
-    backgroundColor: "#F5F7FA",
+    backgroundColor: "#F4F8FB",
   },
 
   topBar: {
     minHeight: 86,
     backgroundColor: "#FFFFFF",
-    paddingHorizontal: 24,
+    paddingHorizontal: 18,
     paddingVertical: 12,
     flexDirection: "row",
     alignItems: "center",
     borderBottomWidth: 1.5,
-    borderBottomColor: "#E5E7EB",
+    borderBottomColor: "#D8E7F0",
   },
 
   backIconButton: {
     width: 52,
     height: 52,
     borderRadius: 18,
-    backgroundColor: "#EEF2F7",
+    backgroundColor: "#EDF5FA",
     alignItems: "center",
     justifyContent: "center",
-    marginRight: 16,
+    marginRight: 14,
   },
 
   backIconText: {
     fontSize: 32,
     fontWeight: "900",
-    color: "#111827",
+    color: "#083A5A",
   },
 
   topBarTitleBox: {
@@ -1250,41 +1172,42 @@ const styles = StyleSheet.create({
   },
 
   topBarTitle: {
-    fontSize: 26,
+    fontSize: 25,
     fontWeight: "900",
-    color: "#111827",
+    color: "#083A5A",
   },
 
   topBarSubtitle: {
     fontSize: 15,
-    color: "#4B5563",
+    color: "#4A7087",
     fontWeight: "800",
     marginTop: 3,
   },
 
   logoMini: {
-    width: 52,
-    height: 52,
+    width: 56,
+    height: 56,
     borderRadius: 18,
-    backgroundColor: "#DBEAFE",
+    backgroundColor: "#FFFFFF",
     alignItems: "center",
     justifyContent: "center",
+    borderWidth: 1.4,
+    borderColor: "#CFE3EE",
   },
 
-  logoMiniText: {
-    fontSize: 13,
-    fontWeight: "900",
-    color: "#1E3A8A",
+  logoMiniImage: {
+    width: 50,
+    height: 50,
   },
 
   screenBody: {
-    padding: 26,
+    padding: 22,
     paddingBottom: 44,
   },
 
   stepBadge: {
     alignSelf: "flex-start",
-    backgroundColor: "#DBEAFE",
+    backgroundColor: "#DFF1FA",
     borderRadius: 999,
     paddingVertical: 8,
     paddingHorizontal: 16,
@@ -1294,54 +1217,56 @@ const styles = StyleSheet.create({
   stepBadgeText: {
     fontSize: 17,
     fontWeight: "900",
-    color: "#1E3A8A",
+    color: "#0B5D83",
   },
 
   sectionCard: {
     backgroundColor: "#FFFFFF",
     borderRadius: 28,
-    padding: 26,
+    padding: 23,
     marginBottom: 22,
-    shadowColor: "#000",
+    borderWidth: 1.4,
+    borderColor: "#D8E7F0",
+    shadowColor: "#0B3A59",
     shadowOpacity: 0.06,
     shadowRadius: 9,
     shadowOffset: { width: 0, height: 4 },
   },
 
   sectionTitle: {
-    fontSize: 26,
+    fontSize: 25,
     fontWeight: "900",
-    color: "#111827",
+    color: "#083A5A",
     marginBottom: 10,
   },
 
   sectionDescription: {
     fontSize: 19,
     lineHeight: 31,
-    color: "#374151",
+    color: "#315B73",
     marginBottom: 18,
     fontWeight: "700",
   },
 
   textArea: {
     minHeight: 190,
-    backgroundColor: "#F9FAFB",
+    backgroundColor: "#F8FBFD",
     borderRadius: 20,
     borderWidth: 2,
-    borderColor: "#CBD5E1",
+    borderColor: "#BCD7E5",
     padding: 18,
     fontSize: 20,
     lineHeight: 33,
-    color: "#111827",
+    color: "#0B2535",
     marginBottom: 18,
   },
 
   voicePanel: {
-    backgroundColor: "#F8FAFC",
+    backgroundColor: "#F8FBFD",
     borderRadius: 22,
-    padding: 19,
+    padding: 18,
     borderWidth: 1.8,
-    borderColor: "#CBD5E1",
+    borderColor: "#BCD7E5",
   },
 
   voiceHeaderRow: {
@@ -1354,14 +1279,14 @@ const styles = StyleSheet.create({
   voiceTitle: {
     fontSize: 22,
     fontWeight: "900",
-    color: "#111827",
+    color: "#083A5A",
   },
 
   voiceModeBadge: {
     fontSize: 15,
     fontWeight: "900",
-    color: "#1E3A8A",
-    backgroundColor: "#DBEAFE",
+    color: "#0B5D83",
+    backgroundColor: "#DFF1FA",
     paddingVertical: 6,
     paddingHorizontal: 11,
     borderRadius: 999,
@@ -1370,7 +1295,7 @@ const styles = StyleSheet.create({
   voiceDescription: {
     fontSize: 17,
     lineHeight: 28,
-    color: "#4B5563",
+    color: "#4A7087",
     marginBottom: 15,
     fontWeight: "700",
   },
@@ -1382,44 +1307,47 @@ const styles = StyleSheet.create({
 
   voiceStartButton: {
     flex: 1,
-    backgroundColor: "#DBEAFE",
+    backgroundColor: "#DFF1FA",
     borderRadius: 18,
     paddingVertical: 18,
-    paddingHorizontal: 12,
+    paddingHorizontal: 10,
     alignItems: "center",
     borderWidth: 1.8,
-    borderColor: "#93C5FD",
+    borderColor: "#8FC7DE",
   },
 
   voiceStartButtonText: {
-    fontSize: 19,
+    fontSize: 18,
     fontWeight: "900",
-    color: "#1E3A8A",
+    color: "#0B5D83",
     marginBottom: 5,
+    textAlign: "center",
   },
 
   voiceReplaceButton: {
     flex: 1,
-    backgroundColor: "#FEE2E2",
+    backgroundColor: "#EEF6FA",
     borderRadius: 18,
     paddingVertical: 18,
-    paddingHorizontal: 12,
+    paddingHorizontal: 10,
     alignItems: "center",
     borderWidth: 1.8,
-    borderColor: "#FCA5A5",
+    borderColor: "#BCD7E5",
   },
 
   voiceReplaceButtonText: {
-    fontSize: 19,
+    fontSize: 18,
     fontWeight: "900",
-    color: "#991B1B",
+    color: "#164B6A",
     marginBottom: 5,
+    textAlign: "center",
   },
 
   voiceSubText: {
     fontSize: 14,
-    color: "#374151",
+    color: "#315B73",
     fontWeight: "800",
+    textAlign: "center",
   },
 
   recordingBox: {
@@ -1482,7 +1410,7 @@ const styles = StyleSheet.create({
   },
 
   stopButton: {
-    backgroundColor: "#EF4444",
+    backgroundColor: "#C2410C",
     borderRadius: 18,
     paddingVertical: 18,
     alignItems: "center",
@@ -1498,7 +1426,7 @@ const styles = StyleSheet.create({
   voiceMessage: {
     fontSize: 16,
     lineHeight: 26,
-    color: "#374151",
+    color: "#315B73",
     fontWeight: "800",
     marginTop: 12,
   },
@@ -1511,26 +1439,26 @@ const styles = StyleSheet.create({
 
   photoButton: {
     flex: 1,
-    backgroundColor: "#FDF2F8",
+    backgroundColor: "#EFF7FB",
     borderRadius: 18,
     paddingVertical: 18,
     alignItems: "center",
     borderWidth: 1.8,
-    borderColor: "#F9A8D4",
+    borderColor: "#8FC7DE",
   },
 
   photoButtonText: {
     fontSize: 19,
     fontWeight: "900",
-    color: "#9D174D",
+    color: "#0B5D83",
   },
 
   photoPreviewBox: {
-    backgroundColor: "#FFF7FB",
+    backgroundColor: "#F8FBFD",
     borderRadius: 20,
     padding: 16,
     borderWidth: 1.8,
-    borderColor: "#F9A8D4",
+    borderColor: "#BCD7E5",
     marginBottom: 16,
   },
 
@@ -1544,26 +1472,26 @@ const styles = StyleSheet.create({
   photoPreviewTitle: {
     fontSize: 18,
     fontWeight: "900",
-    color: "#9D174D",
+    color: "#083A5A",
   },
 
   photoRemoveText: {
     fontSize: 17,
     fontWeight: "900",
-    color: "#BE123C",
+    color: "#B91C1C",
   },
 
   medicineImageFrame: {
     width: "100%",
     height: 260,
     borderRadius: 17,
-    backgroundColor: "#F3F4F6",
+    backgroundColor: "#FFFFFF",
     overflow: "hidden",
     alignItems: "center",
     justifyContent: "center",
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: "#FCE7F3",
+    borderColor: "#D8E7F0",
   },
 
   medicineImage: {
@@ -1574,16 +1502,16 @@ const styles = StyleSheet.create({
   photoAnalysisText: {
     fontSize: 17,
     lineHeight: 28,
-    color: "#831843",
+    color: "#083A5A",
     fontWeight: "800",
   },
 
   emptyPhotoBox: {
     minHeight: 190,
     borderRadius: 20,
-    backgroundColor: "#F9FAFB",
+    backgroundColor: "#F8FBFD",
     borderWidth: 2,
-    borderColor: "#D1D5DB",
+    borderColor: "#BCD7E5",
     borderStyle: "dashed",
     alignItems: "center",
     justifyContent: "center",
@@ -1599,68 +1527,69 @@ const styles = StyleSheet.create({
   emptyPhotoText: {
     fontSize: 18,
     lineHeight: 29,
-    color: "#4B5563",
+    color: "#315B73",
     textAlign: "center",
     fontWeight: "800",
   },
 
   mainButton: {
-    backgroundColor: "#15803D",
+    backgroundColor: "#0B78A6",
     borderRadius: 22,
     paddingVertical: 22,
     alignItems: "center",
     marginBottom: 14,
-    shadowColor: "#000",
-    shadowOpacity: 0.1,
+    shadowColor: "#0B3A59",
+    shadowOpacity: 0.15,
     shadowRadius: 8,
     shadowOffset: { width: 0, height: 4 },
   },
 
   loadingButton: {
-    backgroundColor: "#9CA3AF",
+    backgroundColor: "#8AA8B8",
   },
 
   mainButtonText: {
     fontSize: 23,
     fontWeight: "900",
     color: "#FFFFFF",
+    textAlign: "center",
   },
 
   clearButton: {
-    backgroundColor: "#F3F4F6",
+    backgroundColor: "#FFFFFF",
     borderRadius: 20,
     paddingVertical: 18,
     alignItems: "center",
     borderWidth: 1.8,
-    borderColor: "#D1D5DB",
+    borderColor: "#BCD7E5",
   },
 
   clearButtonText: {
     fontSize: 18,
     fontWeight: "900",
-    color: "#374151",
+    color: "#315B73",
   },
 
   summaryBox: {
-    backgroundColor: "#ECFDF5",
+    backgroundColor: "#DFF1FA",
     borderRadius: 24,
     padding: 24,
     borderWidth: 1.8,
-    borderColor: "#A7F3D0",
+    borderColor: "#8FC7DE",
     marginBottom: 20,
   },
 
   summaryTitle: {
     fontSize: 22,
     fontWeight: "900",
-    color: "#065F46",
+    color: "#083A5A",
     marginBottom: 10,
   },
 
   summaryText: {
     fontSize: 20,
     lineHeight: 33,
-    color: "#064E3B",
+    color: "#083A5A",
     fontWeight: "800",
   },
 
@@ -1670,8 +1599,8 @@ const styles = StyleSheet.create({
     padding: 24,
     marginBottom: 18,
     borderWidth: 1.8,
-    borderColor: "#E5E7EB",
-    shadowColor: "#000",
+    borderColor: "#D8E7F0",
+    shadowColor: "#0B3A59",
     shadowOpacity: 0.05,
     shadowRadius: 8,
     shadowOffset: { width: 0, height: 3 },
@@ -1680,17 +1609,17 @@ const styles = StyleSheet.create({
   infoCardTitle: {
     fontSize: 23,
     fontWeight: "900",
-    color: "#111827",
+    color: "#083A5A",
     marginBottom: 14,
     paddingBottom: 12,
     borderBottomWidth: 2,
-    borderBottomColor: "#F3F4F6",
+    borderBottomColor: "#EFF7FB",
   },
 
   infoCardText: {
     fontSize: 19,
     lineHeight: 33,
-    color: "#1F2937",
+    color: "#17384A",
     fontWeight: "700",
   },
 
@@ -1702,22 +1631,22 @@ const styles = StyleSheet.create({
 
   familyButton: {
     flex: 1,
-    backgroundColor: "#2563EB",
+    backgroundColor: "#0B78A6",
     borderRadius: 20,
     paddingVertical: 20,
     alignItems: "center",
     borderWidth: 1.8,
-    borderColor: "#1D4ED8",
+    borderColor: "#086083",
   },
 
   familyButtonLarge: {
     marginTop: 18,
-    backgroundColor: "#2563EB",
+    backgroundColor: "#0B78A6",
     borderRadius: 20,
     paddingVertical: 20,
     alignItems: "center",
     borderWidth: 1.8,
-    borderColor: "#1D4ED8",
+    borderColor: "#086083",
   },
 
   familyButtonText: {
@@ -1728,33 +1657,33 @@ const styles = StyleSheet.create({
 
   alarmButton: {
     flex: 1,
-    backgroundColor: "#F3F4F6",
+    backgroundColor: "#FFFFFF",
     borderRadius: 20,
     paddingVertical: 20,
     alignItems: "center",
     borderWidth: 1.8,
-    borderColor: "#D1D5DB",
+    borderColor: "#BCD7E5",
   },
 
   alarmButtonText: {
     fontSize: 19,
     fontWeight: "900",
-    color: "#374151",
+    color: "#315B73",
   },
 
   appNoticeBox: {
     marginBottom: 18,
-    backgroundColor: "#EEF2FF",
+    backgroundColor: "#DFF1FA",
     borderRadius: 18,
     padding: 16,
     borderWidth: 1.5,
-    borderColor: "#C7D2FE",
+    borderColor: "#8FC7DE",
   },
 
   appNoticeText: {
     fontSize: 17,
     lineHeight: 27,
-    color: "#3730A3",
+    color: "#083A5A",
     fontWeight: "800",
   },
 
@@ -1763,20 +1692,20 @@ const styles = StyleSheet.create({
     borderRadius: 24,
     padding: 24,
     borderWidth: 1.8,
-    borderColor: "#BFDBFE",
+    borderColor: "#BCD7E5",
   },
 
   familyMessageTitle: {
     fontSize: 23,
     fontWeight: "900",
-    color: "#1E3A8A",
+    color: "#083A5A",
     marginBottom: 14,
   },
 
   familyMessageText: {
     fontSize: 18,
     lineHeight: 31,
-    color: "#1F2937",
+    color: "#17384A",
     fontWeight: "700",
   },
 });

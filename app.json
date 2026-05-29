@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "medi-card-ai",
+    "name": "마이닥터",
     "slug": "medi-card-ai",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -8,22 +8,35 @@
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
     "splash": {
-      "image": "./assets/splash-icon.png",
+      "image": "./assets/mydoctor-logo.png",
       "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "backgroundColor": "#FFFFFF"
     },
     "ios": {
       "supportsTablet": true
     },
     "android": {
+      "package": "com.medicardai.demo",
+      "permissions": [
+        "CAMERA",
+        "RECORD_AUDIO"
+      ],
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
-      },
-      "edgeToEdgeEnabled": true
+        "backgroundColor": "#FFFFFF"
+      }
     },
     "web": {
-      "favicon": "./assets/favicon.png"
-    }
+      "favicon": "./assets/icon.png"
+    },
+    "plugins": [
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "약 봉투 사진을 선택하기 위해 사진 접근 권한이 필요합니다.",
+          "cameraPermission": "약 봉투를 촬영하기 위해 카메라 권한이 필요합니다."
+        }
+      ]
+    ]
   }
 }
