@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "medi-card-ai",
+    "name": "마이닥터",
     "slug": "medi-card-ai",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -8,30 +8,27 @@
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
     "splash": {
-      "image": "./assets/splash-icon.png",
+      "image": "./assets/mydoctor-logo.png",
       "resizeMode": "contain",
-      "backgroundColor": "#F3F4F6"
+      "backgroundColor": "#FFFFFF"
     },
     "ios": {
-      "supportsTablet": true,
-      "infoPlist": {
-        "NSSpeechRecognitionUsageDescription": "진료 내용을 받아쓰기 위해 음성 인식 권한이 필요합니다.",
-        "NSMicrophoneUsageDescription": "음성 입력을 위해 마이크 사용 권한이 필요합니다."
-      }
+      "supportsTablet": true
     },
     "android": {
       "package": "com.medicardai.demo",
       "permissions": [
-        "android.permission.CAMERA",
-        "android.permission.RECORD_AUDIO"
+        "CAMERA",
+        "RECORD_AUDIO",
+        "POST_NOTIFICATIONS"
       ],
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#F3F4F6"
+        "backgroundColor": "#FFFFFF"
       }
     },
     "web": {
-      "favicon": "./assets/favicon.png"
+      "favicon": "./assets/icon.png"
     },
     "plugins": [
       [
@@ -51,11 +48,6 @@
           ]
         }
       ]
-    ],
-    "extra": {
-      "eas": {
-        "projectId": "457e3927-7204-4af8-9e69-0ee7e8faafc9"
-      }
-    }
+    ]
   }
 }
