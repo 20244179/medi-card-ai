@@ -16,14 +16,13 @@ import {
   View,
 } from "react-native";
 import * as ImagePicker from "expo-image-picker";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useFonts } from "expo-font";
 import { extractTextFromImage } from "expo-text-extractor";
 import {
   ExpoSpeechRecognitionModule,
   useSpeechRecognitionEvent,
 } from "expo-speech-recognition";
-import * as Notifications from "expo-notifications";
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import { useFonts } from "expo-font";
 
 const LOGO = require("./assets/mydoctor-logo.png");
 
@@ -39,7 +38,7 @@ const FONT = {
 
 const STORAGE_KEYS = {
   records: "MYDOCTOR_RECORDS",
-  reminders: "MYDOCTOR_REMINDERS",
+  reminders: "MYDOCTOR_REMINDER_DRAFTS",
   mealTimes: "MYDOCTOR_MEAL_TIMES",
 };
 
@@ -51,9 +50,9 @@ const defaultMealTimes = {
 
 const defaultResult = {
   summary:
-    "진료 내용을 입력하거나 음성으로 말하면, 오늘 꼭 기억해야 할 핵심을 쉽게 정리해드립니다.",
+    "진료 내용을 입력하거나 약 봉투 사진을 넣으면, 오늘 꼭 기억해야 할 핵심을 쉽게 정리해드립니다.",
   disease:
-    "진료 내용을 입력하고 버튼을 누르면, 여기에 환자 눈높이에 맞춘 설명이 나옵니다.",
+    "진료 내용을 입력하고 버튼을 누르면, 환자 눈높이에 맞춘 설명이 나옵니다.",
   medicine:
     "처방받은 약을 언제, 어떻게 먹어야 하는지 쉽게 정리해드립니다.",
   caution:
@@ -61,15 +60,6 @@ const defaultResult = {
   hospital:
     "다시 병원에 가야 하는 상황이나 재진 일정을 정리해드립니다.",
 };
-
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowBanner: true,
-    shouldShowList: true,
-    shouldPlaySound: true,
-    shouldSetBadge: false,
-  }),
-});
 
 export default function App() {
   const [fontsLoaded] = useFonts({
@@ -99,56 +89,58 @@ export default function App() {
   const [medicinePhotoName, setMedicinePhotoName] = useState("");
   const [medicinePhotoAnalysis, setMedicinePhotoAnalysis] = useState("");
   const [medicineOcrText, setMedicineOcrText] = useState("");
-  const [medicineHintType, setMedicineHintType] = useState("");
+  const [medicineHintType, setMedicineHintType] = useState("unknown");
   const [isPhotoAnalyzing, setIsPhotoAnalyzing] = useState(false);
 
   const [records, setRecords] = useState([]);
   const [reminders, setReminders] = useState([]);
   const [mealTimes, setMealTimes] = useState(defaultMealTimes);
-  const [familyMessage, setFamilyMessage] = useState("");
-  const [appNotice, setAppNotice] = useState("");
-
   const [reminderDrafts, setReminderDrafts] = useState([]);
+  const [familyMessage, setFamilyMessage] = useState("");
   const [editingRecord, setEditingRecord] = useState(null);
 
   useEffect(() => {
     loadStoredData();
-    prepareNotificationChannel();
   }, []);
 
   useEffect(() => {
-    const handleAndroidBack = () => {
+    const handleBack = () => {
       if (screen === "share") {
         setScreen("result");
         setActiveTab("home");
         return true;
       }
+
       if (screen === "reminderSetup") {
         setScreen("result");
         setActiveTab("home");
         return true;
       }
+
       if (screen === "result") {
         setScreen("input");
         setActiveTab("home");
         return true;
       }
+
       if (screen === "input") {
         setScreen("home");
         setActiveTab("home");
         return true;
       }
+
       if (activeTab !== "home") {
         setActiveTab("home");
         setScreen("home");
         return true;
       }
+
       return false;
     };
 
     const subscription = BackHandler.addEventListener(
       "hardwareBackPress",
-      handleAndroidBack
+      handleBack
     );
 
     return () => subscription.remove();
@@ -220,7 +212,12 @@ export default function App() {
 
       if (recordText) setRecords(JSON.parse(recordText));
       if (reminderText) setReminders(JSON.parse(reminderText));
-      if (mealText) setMealTimes({ ...defaultMealTimes, ...JSON.parse(mealText) });
+      if (mealText) {
+        setMealTimes({
+          ...defaultMealTimes,
+          ...JSON.parse(mealText),
+        });
+      }
     } catch (error) {}
   };
 
@@ -245,17 +242,6 @@ export default function App() {
     );
   };
 
-  const prepareNotificationChannel = async () => {
-    if (Platform.OS === "android") {
-      await Notifications.setNotificationChannelAsync("medication-reminders", {
-        name: "약 알림",
-        importance: Notifications.AndroidImportance.MAX,
-        vibrationPattern: [0, 250, 250, 250],
-        lightColor: "#0B78A6",
-      });
-    }
-  };
-
   const normalizeText = (text) => {
     return String(text || "")
       .toLowerCase()
@@ -263,35 +249,52 @@ export default function App() {
       .trim();
   };
 
-  const detectMedicineType = (text = "") => {
-    const combined = normalizeText(text);
-    const compact = combined
+  const compactText = (text) => {
+    return normalizeText(text)
       .replace(/[\s\-_().,[\]{}<>]/g, "")
       .replace(/mg/g, "")
       .replace(/정/g, "")
       .replace(/정제/g, "")
-      .replace(/서방/g, "");
+      .replace(/서방/g, "")
+      .replace(/필름코팅/g, "");
+  };
+
+  const detectMedicineType = (text = "") => {
+    const combined = normalizeText(text);
+    const compact = compactText(text);
 
     const includesAny = (keywords) =>
       keywords.some((word) => {
         const normal = normalizeText(word);
-        const compactWord = normal.replace(/[\s\-_().,[\]{}<>]/g, "");
+        const compactWord = compactText(word);
         return combined.includes(normal) || compact.includes(compactWord);
       });
 
     const diabetesKeywords = [
       "당뇨",
+      "당뇨병",
       "혈당",
+      "혈당조절",
+      "혈당 조절",
       "인슐린",
       "메트포르민",
       "다이아벡스",
       "글루파",
+      "글루파850",
       "glupa",
+      "glupa850",
       "다이아미크론",
       "디아미크론",
+      "다이아미크론엠알",
+      "디아미크론엠알",
       "diamicron",
+      "diamicronmr",
+      "diamicron mr",
       "gliclazide",
+      "gliclazide mr",
       "metformin",
+      "insulin",
+      "glucose",
       "diabetes",
     ];
 
@@ -301,26 +304,39 @@ export default function App() {
       "암로디핀",
       "노바스크",
       "로사르탄",
+      "발사르탄",
+      "텔미사르탄",
       "amlodipine",
       "losartan",
+      "valsartan",
+      "telmisartan",
       "hypertension",
+      "blood pressure",
     ];
 
     const refluxKeywords = [
       "역류",
       "속쓰림",
+      "속 쓰림",
       "식도염",
       "위산",
+      "위산분비억제",
+      "ppi",
       "오메프라졸",
       "판토프라졸",
+      "란소프라졸",
+      "라베프라졸",
       "omeprazole",
       "pantoprazole",
+      "lansoprazole",
+      "rabeprazole",
       "reflux",
     ];
 
     if (includesAny(diabetesKeywords)) return "diabetes";
     if (includesAny(bpKeywords)) return "bloodPressure";
     if (includesAny(refluxKeywords)) return "reflux";
+
     return "unknown";
   };
 
@@ -384,10 +400,10 @@ export default function App() {
     }
   };
 
-  const generateReminderDrafts = (type, text) => {
-    const combined = `${text || ""} ${medicineOcrText || ""} ${medicinePhotoName || ""}`;
+  const generateReminderDrafts = (type, text = "") => {
+    const detected = type !== "unknown" ? type : detectMedicineType(text);
 
-    if (type === "diabetes" || detectMedicineType(combined) === "diabetes") {
+    if (detected === "diabetes") {
       return [
         {
           id: "morning-before",
@@ -413,6 +429,30 @@ export default function App() {
       ];
     }
 
+    if (detected === "bloodPressure") {
+      return [
+        {
+          id: "morning-bp",
+          label: "아침 식후 30분",
+          meal: "breakfast",
+          offsetMinutes: 30,
+          medicines: ["혈압약"],
+        },
+      ];
+    }
+
+    if (detected === "reflux") {
+      return [
+        {
+          id: "morning-reflux",
+          label: "아침 식전 30분",
+          meal: "breakfast",
+          offsetMinutes: -30,
+          medicines: ["위산 억제제"],
+        },
+      ];
+    }
+
     return [
       {
         id: "general-after",
@@ -428,6 +468,7 @@ export default function App() {
     const [h, m] = String(timeText || "08:00")
       .split(":")
       .map((v) => Number(v));
+
     return {
       hour: Number.isFinite(h) ? h : 8,
       minute: Number.isFinite(m) ? m : 0,
@@ -453,13 +494,13 @@ export default function App() {
     const plans = [];
 
     drafts.forEach((draft) => {
-      const addPlan = (mealKey, labelSuffix = "") => {
+      const addPlan = (mealKey, suffix = "") => {
         const baseTime = currentMealTimes[mealKey] || defaultMealTimes[mealKey];
         const computed = addMinutesToTime(baseTime, draft.offsetMinutes);
 
         plans.push({
           id: `${draft.id}-${mealKey}`,
-          label: `${draft.label}${labelSuffix}`,
+          label: `${draft.label}${suffix}`,
           timeText: computed.text,
           hour: computed.hour,
           minute: computed.minute,
@@ -476,107 +517,6 @@ export default function App() {
     });
 
     return plans;
-  };
-
-  const requestNotificationPermission = async () => {
-    await prepareNotificationChannel();
-
-    const existing = await Notifications.getPermissionsAsync();
-    let finalStatus = existing.status;
-
-    if (existing.status !== "granted") {
-      const requested = await Notifications.requestPermissionsAsync();
-      finalStatus = requested.status;
-    }
-
-    return finalStatus === "granted";
-  };
-
-  const scheduleDailyReminder = async (plan) => {
-    const body = `${plan.medicines.join(", ")} 복용 시간입니다.`;
-
-    return Notifications.scheduleNotificationAsync({
-      content: {
-        title: "마이닥터 약 알림",
-        body,
-        data: { type: "medication", medicines: plan.medicines },
-      },
-      trigger: {
-        type: Notifications.SchedulableTriggerInputTypes.CALENDAR,
-        hour: plan.hour,
-        minute: plan.minute,
-        repeats: true,
-        channelId: "medication-reminders",
-      },
-    });
-  };
-
-  const scheduleTestReminder = async () => {
-    await Notifications.scheduleNotificationAsync({
-      content: {
-        title: "마이닥터 테스트 알림",
-        body: "약 알림이 정상적으로 설정되었습니다.",
-      },
-      trigger: {
-        type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
-        seconds: 10,
-      },
-    });
-  };
-
-  const handleTurnOnReminders = async () => {
-    try {
-      const hasPermission = await requestNotificationPermission();
-
-      if (!hasPermission) {
-        Alert.alert(
-          "알림 권한 필요",
-          "약 알림을 받으려면 휴대폰 알림 권한을 허용해주세요."
-        );
-        return;
-      }
-
-      const plans = buildNotificationPlans(reminderDrafts, mealTimes);
-      const scheduled = [];
-
-      for (const plan of plans) {
-        const notificationId = await scheduleDailyReminder(plan);
-        scheduled.push({
-          ...plan,
-          notificationId,
-          createdAt: new Date().toISOString(),
-        });
-      }
-
-      await scheduleTestReminder();
-
-      const nextReminders = [...scheduled, ...reminders];
-      await saveReminders(nextReminders);
-
-      Alert.alert(
-        "약 알림 설정 완료",
-        "복용 시간에 맞춰 알림이 설정되었습니다.\n테스트 알림은 10초 뒤에 표시됩니다."
-      );
-
-      setActiveTab("reminders");
-      setScreen("reminders");
-    } catch (error) {
-      Alert.alert(
-        "알림 설정 오류",
-        "약 알림을 설정하는 중 문제가 생겼습니다. 다시 시도해주세요."
-      );
-    }
-  };
-
-  const cancelReminder = async (item) => {
-    try {
-      if (item.notificationId) {
-        await Notifications.cancelScheduledNotificationAsync(item.notificationId);
-      }
-
-      const next = reminders.filter((r) => r.notificationId !== item.notificationId);
-      await saveReminders(next);
-    } catch (error) {}
   };
 
   const startVoiceInput = async (mode) => {
@@ -629,9 +569,8 @@ export default function App() {
   const analyzeMedicinePhoto = async (imageUri, photoName = "") => {
     setIsPhotoAnalyzing(true);
     setMedicinePhotoAnalysis("");
-    setMedicineHintType("");
+    setMedicineHintType("unknown");
     setMedicineOcrText("");
-    setAppNotice("");
 
     try {
       const extractedText = await extractTextSafely(imageUri);
@@ -649,7 +588,7 @@ export default function App() {
 
       setMedicineHintType(type);
       setMedicinePhotoAnalysis(`${analysis.title}\n${analysis.message}`);
-      setReminderDrafts(generateReminderDrafts(type, ""));
+      setReminderDrafts(generateReminderDrafts(type, `${photoName} ${userInput}`));
     } finally {
       setIsPhotoAnalyzing(false);
     }
@@ -665,19 +604,17 @@ export default function App() {
 
     setMedicinePhotoUri(asset.uri);
     setMedicinePhotoName(name);
-    setMedicineHintType("");
+    setMedicineHintType("unknown");
     setMedicinePhotoAnalysis("");
     setMedicineOcrText("");
-    setAppNotice("");
 
     analyzeMedicinePhoto(asset.uri, name);
   };
 
   const handleSelectMedicinePhoto = async () => {
-    const permissionResult =
-      await ImagePicker.requestMediaLibraryPermissionsAsync();
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
 
-    if (!permissionResult.granted) {
+    if (!permission.granted) {
       Alert.alert(
         "사진 접근 권한 필요",
         "약 봉투 사진을 선택하려면 사진 접근 권한을 허용해주세요."
@@ -697,9 +634,9 @@ export default function App() {
   };
 
   const handleCaptureMedicinePhoto = async () => {
-    const permissionResult = await ImagePicker.requestCameraPermissionsAsync();
+    const permission = await ImagePicker.requestCameraPermissionsAsync();
 
-    if (!permissionResult.granted) {
+    if (!permission.granted) {
       Alert.alert(
         "카메라 권한 필요",
         "약 봉투를 촬영하려면 카메라 권한을 허용해주세요."
@@ -723,10 +660,8 @@ export default function App() {
     setMedicinePhotoName("");
     setMedicinePhotoAnalysis("");
     setMedicineOcrText("");
-    setMedicineHintType("");
-    setIsPhotoAnalyzing(false);
+    setMedicineHintType("unknown");
     setReminderDrafts([]);
-    setAppNotice("");
   };
 
   const buildResultByType = (type) => {
@@ -827,6 +762,7 @@ export default function App() {
           : typeFromText;
 
       const nextResult = buildResultByType(finalType);
+
       setResult(nextResult);
       setReminderDrafts(generateReminderDrafts(finalType, medicineOcrText));
       setIsLoading(false);
@@ -842,6 +778,7 @@ export default function App() {
       input: userInput,
       result,
       medicinePhotoUri,
+      medicinePhotoName,
       medicineOcrText,
       medicinePhotoAnalysis,
       medicineHintType,
@@ -855,13 +792,16 @@ export default function App() {
 
   const openRecord = (record) => {
     setEditingRecord(record);
-    setResult(record.result);
     setUserInput(record.input || "");
+    setResult(record.result || defaultResult);
     setMedicinePhotoUri(record.medicinePhotoUri || "");
+    setMedicinePhotoName(record.medicinePhotoName || "");
     setMedicineOcrText(record.medicineOcrText || "");
     setMedicinePhotoAnalysis(record.medicinePhotoAnalysis || "");
-    setMedicineHintType(record.medicineHintType || "");
-    setReminderDrafts(generateReminderDrafts(record.medicineHintType, record.medicineOcrText));
+    setMedicineHintType(record.medicineHintType || "unknown");
+    setReminderDrafts(
+      generateReminderDrafts(record.medicineHintType, record.medicineOcrText || "")
+    );
     setActiveTab("home");
     setScreen("result");
   };
@@ -869,41 +809,6 @@ export default function App() {
   const deleteRecord = async (recordId) => {
     const nextRecords = records.filter((item) => item.id !== recordId);
     await saveRecords(nextRecords);
-  };
-
-  const handleClear = () => {
-    if (isListening) {
-      try {
-        ExpoSpeechRecognitionModule.stop();
-      } catch (error) {}
-    }
-
-    setUserInput("");
-    setResult(defaultResult);
-    setIsLoading(false);
-    setIsListening(false);
-    setVoiceMessage("");
-    setLiveTranscript("");
-    setVoiceMode("");
-    speechBufferRef.current = "";
-    setMedicinePhotoUri("");
-    setMedicinePhotoName("");
-    setMedicinePhotoAnalysis("");
-    setMedicineOcrText("");
-    setMedicineHintType("");
-    setIsPhotoAnalyzing(false);
-    setReminderDrafts([]);
-    setFamilyMessage("");
-    setAppNotice("");
-    setEditingRecord(null);
-    setScreen("input");
-    setActiveTab("home");
-  };
-
-  const resetAllAndGoHome = () => {
-    handleClear();
-    setScreen("home");
-    setActiveTab("home");
   };
 
   const buildFamilyMessage = () => {
@@ -945,11 +850,67 @@ ${photoLine}
     } catch (error) {}
   };
 
+  const saveReminderPlans = async () => {
+    const plans = buildNotificationPlans(reminderDrafts, mealTimes).map((plan) => ({
+      ...plan,
+      createdAt: new Date().toISOString(),
+    }));
+
+    const nextReminders = [...plans, ...reminders];
+    await saveReminders(nextReminders);
+
+    Alert.alert(
+      "약 알림 초안 저장",
+      "복용 시간 초안이 저장되었습니다.\n실제 푸시 알림은 다음 단계에서 연결합니다."
+    );
+
+    setActiveTab("reminders");
+    setScreen("reminders");
+  };
+
+  const deleteReminder = async (id) => {
+    const nextReminders = reminders.filter((item) => item.id !== id);
+    await saveReminders(nextReminders);
+  };
+
+  const handleClear = () => {
+    if (isListening) {
+      try {
+        ExpoSpeechRecognitionModule.stop();
+      } catch (error) {}
+    }
+
+    setUserInput("");
+    setResult(defaultResult);
+    setIsLoading(false);
+    setIsListening(false);
+    setVoiceMessage("");
+    setLiveTranscript("");
+    setVoiceMode("");
+    speechBufferRef.current = "";
+    setMedicinePhotoUri("");
+    setMedicinePhotoName("");
+    setMedicinePhotoAnalysis("");
+    setMedicineOcrText("");
+    setMedicineHintType("unknown");
+    setReminderDrafts([]);
+    setFamilyMessage("");
+    setEditingRecord(null);
+    setScreen("input");
+    setActiveTab("home");
+  };
+
+  const resetAllAndGoHome = () => {
+    handleClear();
+    setScreen("home");
+    setActiveTab("home");
+  };
+
   const openReminderSetup = () => {
     const finalType =
       medicineHintType !== "unknown"
         ? medicineHintType
-        : detectMedicineType(`${userInput} ${medicineOcrText}`);
+        : detectMedicineType(`${userInput} ${medicineOcrText} ${medicinePhotoName}`);
 
     const drafts = generateReminderDrafts(finalType, medicineOcrText);
     setReminderDrafts(drafts);
@@ -1116,9 +1077,9 @@ ${photoLine}
           </View>
 
           <View style={styles.sectionCard}>
-            <Text style={styles.sectionTitle}>진료실에서 들은 내용을 적어주세요</Text>
+            <Text style={styles.sectionTitle}>진료 내용을 적어주세요</Text>
             <Text style={styles.sectionDescription}>
-              직접 입력해도 되고, 아래 음성 입력 버튼을 눌러 말해도 됩니다.
+              직접 입력하거나 음성 입력을 사용할 수 있습니다.
             </Text>
 
             <TextInput
@@ -1126,7 +1087,16 @@ ${photoLine}
               multiline
               textAlignVertical="top"
               value={userInput}
-              onChangeText={setUserInput}
+              onChangeText={(text) => {
+                setUserInput(text);
+                const type = detectMedicineType(`${text} ${medicineOcrText}`);
+                if (type !== "unknown") {
+                  const analysis = getMedicineAnalysisText(type);
+                  setMedicineHintType(type);
+                  setMedicinePhotoAnalysis(`${analysis.title}\n${analysis.message}`);
+                  setReminderDrafts(generateReminderDrafts(type, text));
+                }
+              }}
               placeholder="예: 당뇨 때문에 병원에 갔고 약을 받았어요. 식후에 먹으라고 하셨어요."
               placeholderTextColor="#6B7C8D"
             />
@@ -1204,9 +1174,9 @@ ${photoLine}
           </View>
 
           <View style={styles.sectionCard}>
-            <Text style={styles.sectionTitle}>약 봉투 사진이 있으면 넣어주세요</Text>
+            <Text style={styles.sectionTitle}>약 봉투 사진을 넣어주세요</Text>
             <Text style={styles.sectionDescription}>
-              약 이름이 기억나지 않을 때 도움이 됩니다. 없으면 건너뛰어도 됩니다.
+              약 이름이 기억나지 않을 때 도움이 됩니다.
             </Text>
 
             <View style={styles.photoButtonRow}>
@@ -1398,7 +1368,7 @@ ${photoLine}
           </View>
 
           <View style={styles.sectionCard}>
-            <Text style={styles.sectionTitle}>설정될 알림</Text>
+            <Text style={styles.sectionTitle}>저장될 알림 초안</Text>
             {plans.map((plan) => (
               <View key={plan.id} style={styles.planRow}>
                 <Text style={styles.planTime}>{plan.timeText}</Text>
@@ -1410,9 +1380,9 @@ ${photoLine}
             ))}
           </View>
 
-          <TouchableOpacity style={styles.mainButton} onPress={handleTurnOnReminders}>
+          <TouchableOpacity style={styles.mainButton} onPress={saveReminderPlans}>
             <Text style={styles.mainButtonText} numberOfLines={1}>
-              알림 켜기
+              알림 초안 저장하기
             </Text>
           </TouchableOpacity>
         </ScrollView>
@@ -1436,7 +1406,7 @@ ${photoLine}
             records.map((record) => (
               <View key={record.id} style={styles.recordCard}>
                 <Text style={styles.recordDate}>{formatDate(record.createdAt)}</Text>
-                <Text style={styles.recordTitle} numberOfLines={2}>
+                <Text style={styles.recordTitle} numberOfLines={3}>
                   {record.result?.summary || "진료 기록"}
                 </Text>
                 <View style={styles.recordButtonRow}>
@@ -1471,6 +1441,12 @@ ${photoLine}
         {renderTopBar("약 알림 관리", "tab-home")}
 
         <ScrollView contentContainerStyle={styles.screenBody}>
+          <View style={styles.noticeBox}>
+            <Text style={styles.noticeText}>
+              현재 버전에서는 알림 초안을 저장합니다. 실제 푸시 알림은 다음 단계에서 연결합니다.
+            </Text>
+          </View>
+
           <View style={styles.sectionCard}>
             <Text style={styles.sectionTitle}>기본 식사 시간</Text>
             <Text style={styles.sectionDescription}>
@@ -1501,19 +1477,19 @@ ${photoLine}
           {reminders.length === 0 ? (
             <EmptyState
               icon="💊"
-              title="설정된 약 알림이 없습니다"
-              text="쉬운 설명 카드에서 약 알림 설정을 눌러 알림을 켤 수 있습니다."
+              title="저장된 알림 초안이 없습니다"
+              text="쉬운 설명 카드에서 약 알림 설정을 눌러 알림 초안을 만들 수 있습니다."
             />
           ) : (
             reminders.map((item) => (
-              <View key={item.notificationId || item.id} style={styles.reminderCard}>
+              <View key={item.id} style={styles.reminderCard}>
                 <Text style={styles.reminderTime}>{item.timeText}</Text>
                 <Text style={styles.reminderTitle}>{item.label}</Text>
                 <Text style={styles.reminderBody}>{item.medicines.join(", ")}</Text>
 
                 <TouchableOpacity
                   style={styles.recordDeleteButton}
-                  onPress={() => cancelReminder(item)}
+                  onPress={() => deleteReminder(item.id)}
                 >
                   <Text style={styles.recordDeleteText} numberOfLines={1}>
                     알림 삭제
@@ -1534,9 +1510,9 @@ ${photoLine}
 
         <ScrollView contentContainerStyle={styles.screenBody}>
           <View style={styles.sectionCard}>
-            <Text style={styles.sectionTitle}>마이닥터 설정</Text>
+            <Text style={styles.sectionTitle}>기본 식사 시간</Text>
             <Text style={styles.sectionDescription}>
-              기본 식사 시간과 알림 정보를 관리할 수 있습니다.
+              약 알림 초안을 만들 때 사용하는 기준 시간입니다.
             </Text>
 
             <MealInput
@@ -1673,27 +1649,22 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#F4F8FB",
   },
-
   safeArea: {
     flex: 1,
     backgroundColor: "#F4F8FB",
   },
-
   keyboardView: {
     flex: 1,
     backgroundColor: "#F4F8FB",
   },
-
   appRoot: {
     flex: 1,
     backgroundColor: "#F4F8FB",
   },
-
   appScreen: {
     flex: 1,
     backgroundColor: "#F4F8FB",
   },
-
   homeWrap: {
     paddingHorizontal: 22,
     paddingTop: 26,
@@ -1701,13 +1672,11 @@ const styles = StyleSheet.create({
     backgroundColor: "#F4F8FB",
     alignItems: "center",
   },
-
   homeLogoImage: {
     width: 175,
     height: 175,
     marginBottom: 4,
   },
-
   homeMainText: {
     fontFamily: FONT.koExtraBold,
     fontSize: 22,
@@ -1717,7 +1686,6 @@ const styles = StyleSheet.create({
     letterSpacing: -0.3,
     marginBottom: 24,
   },
-
   homeFeatureBox: {
     width: "100%",
     backgroundColor: "#FFFFFF",
@@ -1726,27 +1694,20 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     borderColor: "#D8E7F0",
     marginBottom: 22,
-    shadowColor: "#0B3A59",
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 6 },
     elevation: 3,
   },
-
   homeFeatureTitle: {
     fontFamily: FONT.koExtraBold,
     fontSize: 21,
     color: "#083A5A",
     marginBottom: 12,
   },
-
   homeFeatureText: {
     fontFamily: FONT.koRegular,
     fontSize: 18,
     lineHeight: 32,
     color: "#164B6A",
   },
-
   startButton: {
     width: "100%",
     backgroundColor: "#0B78A6",
@@ -1755,19 +1716,16 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginBottom: 14,
   },
-
   startButtonText: {
     fontFamily: FONT.koExtraBold,
     fontSize: 23,
     color: "#FFFFFF",
   },
-
   quickRow: {
     flexDirection: "row",
     gap: 10,
     width: "100%",
   },
-
   quickButton: {
     flex: 1,
     backgroundColor: "#FFFFFF",
@@ -1777,13 +1735,11 @@ const styles = StyleSheet.create({
     borderWidth: 1.8,
     borderColor: "#BCD7E5",
   },
-
   quickButtonText: {
     fontFamily: FONT.koExtraBold,
     fontSize: 17,
     color: "#315B73",
   },
-
   topBar: {
     minHeight: 82,
     backgroundColor: "#FFFFFF",
@@ -1794,7 +1750,6 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1.5,
     borderBottomColor: "#D8E7F0",
   },
-
   backIconButton: {
     width: 50,
     height: 50,
@@ -1804,30 +1759,25 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     marginRight: 12,
   },
-
   backIconText: {
     fontFamily: FONT.enExtraBold,
     fontSize: 30,
     color: "#083A5A",
   },
-
   topBarTitleBox: {
     flex: 1,
   },
-
   topBarTitle: {
     fontFamily: FONT.koExtraBold,
     fontSize: 23,
     color: "#083A5A",
   },
-
   topBarSubtitle: {
     fontFamily: FONT.enBold,
     fontSize: 14,
     color: "#4A7087",
     marginTop: 2,
   },
-
   logoMini: {
     width: 54,
     height: 54,
@@ -1838,17 +1788,14 @@ const styles = StyleSheet.create({
     borderWidth: 1.4,
     borderColor: "#CFE3EE",
   },
-
   logoMiniImage: {
     width: 48,
     height: 48,
   },
-
   screenBody: {
     padding: 18,
     paddingBottom: 40,
   },
-
   stepBadge: {
     alignSelf: "flex-start",
     backgroundColor: "#DFF1FA",
@@ -1857,13 +1804,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 15,
     marginBottom: 10,
   },
-
   stepBadgeText: {
     fontFamily: FONT.koExtraBold,
     fontSize: 16,
     color: "#0B5D83",
   },
-
   sectionCard: {
     backgroundColor: "#FFFFFF",
     borderRadius: 28,
@@ -1871,13 +1816,8 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     borderWidth: 1.4,
     borderColor: "#D8E7F0",
-    shadowColor: "#0B3A59",
-    shadowOpacity: 0.055,
-    shadowRadius: 9,
-    shadowOffset: { width: 0, height: 4 },
     elevation: 2,
   },
-
   sectionTitle: {
     fontFamily: FONT.koExtraBold,
     fontSize: 22,
@@ -1885,7 +1825,6 @@ const styles = StyleSheet.create({
     color: "#083A5A",
     marginBottom: 10,
   },
-
   sectionDescription: {
     fontFamily: FONT.koRegular,
     fontSize: 17,
@@ -1893,7 +1832,6 @@ const styles = StyleSheet.create({
     color: "#315B73",
     marginBottom: 16,
   },
-
   textArea: {
     minHeight: 175,
     backgroundColor: "#F8FBFD",
@@ -1907,7 +1845,6 @@ const styles = StyleSheet.create({
     color: "#0B2535",
     marginBottom: 18,
   },
-
   voicePanel: {
     backgroundColor: "#F8FBFD",
     borderRadius: 24,
@@ -1915,14 +1852,12 @@ const styles = StyleSheet.create({
     borderWidth: 1.8,
     borderColor: "#BCD7E5",
   },
-
   voiceTitle: {
     fontFamily: FONT.koExtraBold,
     fontSize: 20,
     color: "#083A5A",
     marginBottom: 8,
   },
-
   voiceDescription: {
     fontFamily: FONT.koRegular,
     fontSize: 16,
@@ -1930,12 +1865,10 @@ const styles = StyleSheet.create({
     color: "#4A7087",
     marginBottom: 14,
   },
-
   voiceButtonRow: {
     flexDirection: "column",
     gap: 10,
   },
-
   voiceStartButton: {
     width: "100%",
     backgroundColor: "#DFF1FA",
@@ -1946,7 +1879,6 @@ const styles = StyleSheet.create({
     borderWidth: 1.8,
     borderColor: "#8FC7DE",
   },
-
   voiceStartButtonText: {
     fontFamily: FONT.koExtraBold,
     fontSize: 18,
@@ -1954,7 +1886,6 @@ const styles = StyleSheet.create({
     marginBottom: 5,
     textAlign: "center",
   },
-
   voiceReplaceButton: {
     width: "100%",
     backgroundColor: "#EEF6FA",
@@ -1965,7 +1896,6 @@ const styles = StyleSheet.create({
     borderWidth: 1.8,
     borderColor: "#BCD7E5",
   },
-
   voiceReplaceButtonText: {
     fontFamily: FONT.koExtraBold,
     fontSize: 18,
@@ -1973,14 +1903,12 @@ const styles = StyleSheet.create({
     marginBottom: 5,
     textAlign: "center",
   },
-
   voiceSubText: {
     fontFamily: FONT.koRegular,
     fontSize: 14,
     color: "#315B73",
     textAlign: "center",
   },
-
   recordingBox: {
     backgroundColor: "#FFF7ED",
     borderRadius: 22,
@@ -1988,13 +1916,11 @@ const styles = StyleSheet.create({
     borderWidth: 1.8,
     borderColor: "#FDBA74",
   },
-
   recordingTopRow: {
     flexDirection: "row",
     alignItems: "center",
     marginBottom: 10,
   },
-
   recordDot: {
     width: 13,
     height: 13,
@@ -2002,13 +1928,11 @@ const styles = StyleSheet.create({
     backgroundColor: "#EF4444",
     marginRight: 10,
   },
-
   recordingTitle: {
     fontFamily: FONT.koExtraBold,
     fontSize: 20,
     color: "#9A3412",
   },
-
   transcriptBox: {
     backgroundColor: "#FFFFFF",
     borderRadius: 18,
@@ -2017,34 +1941,29 @@ const styles = StyleSheet.create({
     borderWidth: 1.2,
     borderColor: "#FED7AA",
   },
-
   transcriptLabel: {
     fontFamily: FONT.koExtraBold,
     fontSize: 14,
     color: "#9A3412",
     marginBottom: 6,
   },
-
   transcriptText: {
     fontFamily: FONT.koRegular,
     fontSize: 17,
     lineHeight: 29,
     color: "#111827",
   },
-
   stopButton: {
     backgroundColor: "#C2410C",
     borderRadius: 20,
     paddingVertical: 17,
     alignItems: "center",
   },
-
   stopButtonText: {
     fontFamily: FONT.koExtraBold,
     color: "#FFFFFF",
     fontSize: 18,
   },
-
   voiceMessage: {
     fontFamily: FONT.koRegular,
     fontSize: 15,
@@ -2052,13 +1971,11 @@ const styles = StyleSheet.create({
     color: "#315B73",
     marginTop: 12,
   },
-
   photoButtonRow: {
     flexDirection: "row",
     gap: 10,
     marginBottom: 16,
   },
-
   photoButton: {
     flex: 1,
     backgroundColor: "#EFF7FB",
@@ -2069,13 +1986,11 @@ const styles = StyleSheet.create({
     borderWidth: 1.8,
     borderColor: "#8FC7DE",
   },
-
   photoButtonText: {
     fontFamily: FONT.koExtraBold,
     fontSize: 18,
     color: "#0B5D83",
   },
-
   photoPreviewBox: {
     backgroundColor: "#F8FBFD",
     borderRadius: 22,
@@ -2084,26 +1999,22 @@ const styles = StyleSheet.create({
     borderColor: "#BCD7E5",
     marginBottom: 16,
   },
-
   photoPreviewHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
     marginBottom: 12,
   },
-
   photoPreviewTitle: {
     fontFamily: FONT.koExtraBold,
     fontSize: 17,
     color: "#083A5A",
   },
-
   photoRemoveText: {
     fontFamily: FONT.koExtraBold,
     fontSize: 16,
     color: "#B91C1C",
   },
-
   medicineImageFrame: {
     width: "100%",
     height: 235,
@@ -2116,19 +2027,16 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#D8E7F0",
   },
-
   medicineImage: {
     width: "100%",
     height: "100%",
   },
-
   photoAnalysisText: {
     fontFamily: FONT.koRegular,
     fontSize: 17,
     lineHeight: 30,
     color: "#083A5A",
   },
-
   emptyPhotoBox: {
     minHeight: 172,
     borderRadius: 22,
@@ -2141,13 +2049,11 @@ const styles = StyleSheet.create({
     padding: 22,
     marginBottom: 16,
   },
-
   emptyPhotoIcon: {
     fontFamily: FONT.enBold,
     fontSize: 42,
     marginBottom: 10,
   },
-
   emptyPhotoText: {
     fontFamily: FONT.koRegular,
     fontSize: 17,
@@ -2155,7 +2061,6 @@ const styles = StyleSheet.create({
     color: "#315B73",
     textAlign: "center",
   },
-
   mainButton: {
     backgroundColor: "#0B78A6",
     borderRadius: 24,
@@ -2163,11 +2068,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginBottom: 14,
   },
-
   loadingButton: {
     backgroundColor: "#8AA8B8",
   },
-
   mainButtonText: {
     fontFamily: FONT.koExtraBold,
     fontSize: 21,
@@ -2175,7 +2078,6 @@ const styles = StyleSheet.create({
     textAlign: "center",
     paddingHorizontal: 8,
   },
-
   clearButton: {
     backgroundColor: "#FFFFFF",
     borderRadius: 22,
@@ -2184,13 +2086,11 @@ const styles = StyleSheet.create({
     borderWidth: 1.8,
     borderColor: "#BCD7E5",
   },
-
   clearButtonText: {
     fontFamily: FONT.koExtraBold,
     fontSize: 17,
     color: "#315B73",
   },
-
   summaryBox: {
     backgroundColor: "#DFF1FA",
     borderRadius: 24,
@@ -2199,7 +2099,6 @@ const styles = StyleSheet.create({
     borderColor: "#8FC7DE",
     marginBottom: 18,
   },
-
   summaryTitle: {
     fontFamily: FONT.koExtraBold,
     fontSize: 21,
@@ -2207,14 +2106,12 @@ const styles = StyleSheet.create({
     color: "#083A5A",
     marginBottom: 10,
   },
-
   summaryText: {
     fontFamily: FONT.koRegular,
     fontSize: 18,
     lineHeight: 32,
     color: "#083A5A",
   },
-
   infoCard: {
     backgroundColor: "#FFFFFF",
     borderRadius: 24,
@@ -2223,7 +2120,6 @@ const styles = StyleSheet.create({
     borderWidth: 1.8,
     borderColor: "#D8E7F0",
   },
-
   infoCardTitle: {
     fontFamily: FONT.koExtraBold,
     fontSize: 21,
@@ -2234,21 +2130,18 @@ const styles = StyleSheet.create({
     borderBottomWidth: 2,
     borderBottomColor: "#EFF7FB",
   },
-
   infoCardText: {
     fontFamily: FONT.koRegular,
     fontSize: 17,
     lineHeight: 31,
     color: "#17384A",
   },
-
   actionPanel: {
     flexDirection: "row",
     gap: 10,
     marginTop: 8,
     marginBottom: 14,
   },
-
   familyButton: {
     flex: 1,
     backgroundColor: "#0B78A6",
@@ -2256,7 +2149,6 @@ const styles = StyleSheet.create({
     paddingVertical: 18,
     alignItems: "center",
   },
-
   familyButtonLarge: {
     marginTop: 18,
     backgroundColor: "#0B78A6",
@@ -2264,13 +2156,11 @@ const styles = StyleSheet.create({
     paddingVertical: 18,
     alignItems: "center",
   },
-
   familyButtonText: {
     fontFamily: FONT.koExtraBold,
     fontSize: 17,
     color: "#FFFFFF",
   },
-
   alarmButton: {
     flex: 1,
     backgroundColor: "#FFFFFF",
@@ -2280,13 +2170,11 @@ const styles = StyleSheet.create({
     borderWidth: 1.8,
     borderColor: "#BCD7E5",
   },
-
   alarmButtonText: {
     fontFamily: FONT.koExtraBold,
     fontSize: 17,
     color: "#315B73",
   },
-
   saveButton: {
     backgroundColor: "#EAF7EF",
     borderRadius: 22,
@@ -2295,13 +2183,11 @@ const styles = StyleSheet.create({
     borderWidth: 1.8,
     borderColor: "#B7E2C5",
   },
-
   saveButtonText: {
     fontFamily: FONT.koExtraBold,
     fontSize: 17,
     color: "#14532D",
   },
-
   draftCard: {
     backgroundColor: "#F8FBFD",
     borderRadius: 20,
@@ -2310,32 +2196,27 @@ const styles = StyleSheet.create({
     borderColor: "#BCD7E5",
     marginBottom: 12,
   },
-
   draftTitle: {
     fontFamily: FONT.koExtraBold,
     fontSize: 18,
     color: "#083A5A",
     marginBottom: 8,
   },
-
   draftMedicine: {
     fontFamily: FONT.koRegular,
     fontSize: 17,
     lineHeight: 28,
     color: "#17384A",
   },
-
   mealInputRow: {
     marginBottom: 14,
   },
-
   mealInputLabel: {
     fontFamily: FONT.koExtraBold,
     fontSize: 17,
     color: "#083A5A",
     marginBottom: 8,
   },
-
   mealInput: {
     backgroundColor: "#F8FBFD",
     borderRadius: 18,
@@ -2347,7 +2228,6 @@ const styles = StyleSheet.create({
     fontSize: 20,
     color: "#0B2535",
   },
-
   planRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -2358,32 +2238,27 @@ const styles = StyleSheet.create({
     borderWidth: 1.4,
     borderColor: "#D8E7F0",
   },
-
   planTime: {
     width: 68,
     fontFamily: FONT.enExtraBold,
     fontSize: 20,
     color: "#0B78A6",
   },
-
   planTextBox: {
     flex: 1,
   },
-
   planTitle: {
     fontFamily: FONT.koExtraBold,
     fontSize: 16,
     color: "#083A5A",
     marginBottom: 4,
   },
-
   planBody: {
     fontFamily: FONT.koRegular,
     fontSize: 16,
     lineHeight: 26,
     color: "#17384A",
   },
-
   recordCard: {
     backgroundColor: "#FFFFFF",
     borderRadius: 24,
@@ -2392,14 +2267,12 @@ const styles = StyleSheet.create({
     borderColor: "#D8E7F0",
     marginBottom: 14,
   },
-
   recordDate: {
     fontFamily: FONT.enBold,
     fontSize: 15,
     color: "#0B78A6",
     marginBottom: 8,
   },
-
   recordTitle: {
     fontFamily: FONT.koRegular,
     fontSize: 17,
@@ -2407,12 +2280,10 @@ const styles = StyleSheet.create({
     color: "#17384A",
     marginBottom: 14,
   },
-
   recordButtonRow: {
     flexDirection: "row",
     gap: 10,
   },
-
   recordOpenButton: {
     flex: 1,
     backgroundColor: "#0B78A6",
@@ -2420,13 +2291,11 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     alignItems: "center",
   },
-
   recordOpenText: {
     fontFamily: FONT.koExtraBold,
     fontSize: 16,
     color: "#FFFFFF",
   },
-
   recordDeleteButton: {
     backgroundColor: "#FFF1F2",
     borderRadius: 18,
@@ -2435,15 +2304,12 @@ const styles = StyleSheet.create({
     alignItems: "center",
     borderWidth: 1.5,
     borderColor: "#FECACA",
-    marginTop: 12,
   },
-
   recordDeleteText: {
     fontFamily: FONT.koExtraBold,
     fontSize: 16,
     color: "#B91C1C",
   },
-
   reminderCard: {
     backgroundColor: "#FFFFFF",
     borderRadius: 24,
@@ -2452,28 +2318,25 @@ const styles = StyleSheet.create({
     borderColor: "#D8E7F0",
     marginBottom: 14,
   },
-
   reminderTime: {
     fontFamily: FONT.enExtraBold,
     fontSize: 26,
     color: "#0B78A6",
     marginBottom: 8,
   },
-
   reminderTitle: {
     fontFamily: FONT.koExtraBold,
     fontSize: 18,
     color: "#083A5A",
     marginBottom: 6,
   },
-
   reminderBody: {
     fontFamily: FONT.koRegular,
     fontSize: 17,
     lineHeight: 29,
     color: "#17384A",
+    marginBottom: 12,
   },
-
   emptyState: {
     backgroundColor: "#FFFFFF",
     borderRadius: 28,
@@ -2482,12 +2345,10 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     borderColor: "#D8E7F0",
   },
-
   emptyStateIcon: {
     fontSize: 42,
     marginBottom: 12,
   },
-
   emptyStateTitle: {
     fontFamily: FONT.koExtraBold,
     fontSize: 21,
@@ -2495,7 +2356,6 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     textAlign: "center",
   },
-
   emptyStateText: {
     fontFamily: FONT.koRegular,
     fontSize: 17,
@@ -2503,7 +2363,6 @@ const styles = StyleSheet.create({
     color: "#315B73",
     textAlign: "center",
   },
-
   noticeBox: {
     backgroundColor: "#EAF7EF",
     borderRadius: 18,
@@ -2512,14 +2371,12 @@ const styles = StyleSheet.create({
     borderColor: "#B7E2C5",
     marginBottom: 14,
   },
-
   noticeText: {
     fontFamily: FONT.koRegular,
     fontSize: 16,
     lineHeight: 26,
     color: "#14532D",
   },
-
   shareNoticeBox: {
     marginBottom: 18,
     backgroundColor: "#DFF1FA",
@@ -2528,14 +2385,12 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     borderColor: "#8FC7DE",
   },
-
   shareNoticeText: {
     fontFamily: FONT.koRegular,
     fontSize: 16,
     lineHeight: 28,
     color: "#083A5A",
   },
-
   familyMessageBox: {
     backgroundColor: "#FFFFFF",
     borderRadius: 24,
@@ -2543,21 +2398,18 @@ const styles = StyleSheet.create({
     borderWidth: 1.8,
     borderColor: "#BCD7E5",
   },
-
   familyMessageTitle: {
     fontFamily: FONT.koExtraBold,
     fontSize: 21,
     color: "#083A5A",
     marginBottom: 14,
   },
-
   familyMessageText: {
     fontFamily: FONT.koRegular,
     fontSize: 16,
     lineHeight: 30,
     color: "#17384A",
   },
-
   bottomTabs: {
     height: 82,
     backgroundColor: "#FFFFFF",
@@ -2568,29 +2420,24 @@ const styles = StyleSheet.create({
     paddingTop: 8,
     paddingBottom: 8,
   },
-
   tabButton: {
     flex: 1,
     borderRadius: 18,
     alignItems: "center",
     justifyContent: "center",
   },
-
   tabButtonActive: {
     backgroundColor: "#DFF1FA",
   },
-
   tabIcon: {
     fontSize: 22,
     marginBottom: 2,
   },
-
   tabLabel: {
     fontFamily: FONT.koExtraBold,
     fontSize: 13,
     color: "#6B7C8D",
   },
-
   tabLabelActive: {
     color: "#0B5D83",
   },
