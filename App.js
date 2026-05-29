@@ -20,7 +20,7 @@ const LOGO = require("./assets/mydoctor-logo.png");
 
 const defaultResult = {
   summary:
-    "진료 내용을 입력하거나 음성으로 말하면, AI가 오늘 꼭 기억해야 할 핵심을 한 줄로 정리해드립니다.",
+    "진료 내용을 입력하거나 음성으로 말하면, 오늘 꼭 기억해야 할 핵심을 쉽게 정리해드립니다.",
   disease:
     "진료 내용을 입력하고 버튼을 누르면, 여기에 환자 눈높이에 맞춘 설명이 나옵니다.",
   medicine:
@@ -55,6 +55,58 @@ export default function App() {
 
   const [familyMessage, setFamilyMessage] = useState("");
   const [appNotice, setAppNotice] = useState("");
+
+  useEffect(() => {
+    if (Platform.OS === "web" && typeof document !== "undefined") {
+      const style = document.createElement("style");
+      style.innerHTML = `
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700;800;900&display=swap');
+
+        html, body, #root {
+          width: 100%;
+          height: 100%;
+          margin: 0;
+          padding: 0;
+          background: #F4F8FB;
+          overflow: hidden;
+          font-family: 'Noto Sans KR', 'Apple SD Gothic Neo', 'Segoe UI Rounded', 'Segoe UI', sans-serif !important;
+        }
+
+        * {
+          box-sizing: border-box;
+          font-family: 'Noto Sans KR', 'Apple SD Gothic Neo', 'Segoe UI Rounded', 'Segoe UI', sans-serif !important;
+        }
+
+        textarea, input, button {
+          font-family: 'Noto Sans KR', 'Apple SD Gothic Neo', 'Segoe UI Rounded', 'Segoe UI', sans-serif !important;
+        }
+
+        ::-webkit-scrollbar {
+          width: 6px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+          background: #BCD7E5;
+          border-radius: 999px;
+        }
+
+        ::-webkit-scrollbar-track {
+          background: transparent;
+        }
+
+        @media (max-width: 520px) {
+          html, body, #root {
+            background: #F4F8FB;
+          }
+        }
+      `;
+      document.head.appendChild(style);
+
+      return () => {
+        document.head.removeChild(style);
+      };
+    }
+  }, []);
 
   useEffect(() => {
     if (Platform.OS !== "web" || typeof window === "undefined") {
@@ -125,11 +177,13 @@ export default function App() {
       }
 
       if (event.error === "no-speech") {
-        setVoiceMessage("음성이 잘 들리지 않았습니다. 조용한 곳에서 다시 말씀해주세요.");
+        setVoiceMessage(
+          "음성이 잘 들리지 않았습니다. 조용한 곳에서 다시 말씀해주세요."
+        );
         return;
       }
 
-      setVoiceMessage("음성 인식 중 오류가 발생했습니다. 다시 시도해주세요.");
+      setVoiceMessage("음성 인식 중 문제가 생겼습니다. 잠시 후 다시 시도해주세요.");
     };
 
     recognition.onend = () => {
@@ -150,7 +204,7 @@ export default function App() {
 
         setVoiceMessage("음성 입력이 입력창에 반영되었습니다.");
       } else {
-        setVoiceMessage("음성 입력이 종료되었습니다. 인식된 문장이 없습니다.");
+        setVoiceMessage("인식된 문장이 없습니다. 다시 말씀해주세요.");
       }
 
       setIsListening(false);
@@ -735,26 +789,26 @@ ${photoLine}
   const renderHomeScreen = () => {
     return (
       <View style={styles.homeWrap}>
-        <View style={styles.homeCard}>
+        <View style={styles.homeHero}>
           <Image source={LOGO} style={styles.homeLogoImage} resizeMode="contain" />
 
           <Text style={styles.appName}>{APP_NAME}</Text>
           <Text style={styles.appSubtitle}>{APP_SUBTITLE}</Text>
-
-          <View style={styles.homeFeatureBox}>
-            <Text style={styles.homeFeatureTitle}>이 앱으로 할 수 있는 일</Text>
-            <Text style={styles.homeFeatureText}>✓ 어려운 진료 내용을 쉽게 보기</Text>
-            <Text style={styles.homeFeatureText}>✓ 가족에게 요약문 보내기</Text>
-            <Text style={styles.homeFeatureText}>✓ 약 알림 시간 설정하기</Text>
-          </View>
-
-          <TouchableOpacity
-            style={styles.startButton}
-            onPress={() => setScreen("input")}
-          >
-            <Text style={styles.startButtonText}>시작하기</Text>
-          </TouchableOpacity>
         </View>
+
+        <View style={styles.homeFeatureBox}>
+          <Text style={styles.homeFeatureTitle}>이 앱으로 할 수 있는 일</Text>
+          <Text style={styles.homeFeatureText}>✓ 어려운 진료 내용을 쉽게 보기</Text>
+          <Text style={styles.homeFeatureText}>✓ 가족에게 요약문 보내기</Text>
+          <Text style={styles.homeFeatureText}>✓ 약 알림 시간 설정하기</Text>
+        </View>
+
+        <TouchableOpacity
+          style={styles.startButton}
+          onPress={() => setScreen("input")}
+        >
+          <Text style={styles.startButtonText}>시작하기</Text>
+        </TouchableOpacity>
       </View>
     );
   };
@@ -995,7 +1049,7 @@ ${photoLine}
         style={styles.keyboardView}
         behavior={Platform.OS === "ios" ? "padding" : undefined}
       >
-        <View style={styles.webAppFrame}>
+        <View style={styles.appRoot}>
           {screen === "home" && renderHomeScreen()}
           {screen === "input" && renderInputScreen()}
           {screen === "result" && renderResultScreen()}
@@ -1020,99 +1074,85 @@ function InfoCard({ icon, title, text }) {
 const styles = StyleSheet.create({
   page: {
     flex: 1,
-    backgroundColor: "#DCECF4",
+    backgroundColor: "#F4F8FB",
     alignItems: "center",
     justifyContent: "center",
-    padding: 22,
   },
 
   keyboardView: {
+    flex: 1,
     width: "100%",
     alignItems: "center",
-    justifyContent: "center",
   },
 
-  webAppFrame: {
+  appRoot: {
+    flex: 1,
     width: "100%",
-    maxWidth: 980,
-    height: "92vh",
-    minHeight: 720,
+    maxWidth: 520,
     backgroundColor: "#F4F8FB",
-    borderRadius: 34,
-    overflow: "hidden",
-    shadowColor: "#0B3A59",
-    shadowOpacity: 0.18,
-    shadowRadius: 26,
-    shadowOffset: { width: 0, height: 14 },
   },
 
   homeWrap: {
     flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    padding: 22,
+    paddingHorizontal: 22,
+    paddingTop: 34,
+    paddingBottom: 24,
     backgroundColor: "#F4F8FB",
+    justifyContent: "center",
   },
 
-  homeCard: {
-    width: "100%",
-    maxWidth: 560,
-    backgroundColor: "#FFFFFF",
-    borderRadius: 32,
-    padding: 28,
+  homeHero: {
     alignItems: "center",
-    borderWidth: 1.5,
-    borderColor: "#D8E7F0",
-    shadowColor: "#0B3A59",
-    shadowOpacity: 0.11,
-    shadowRadius: 14,
-    shadowOffset: { width: 0, height: 7 },
+    marginBottom: 22,
   },
 
   homeLogoImage: {
-    width: 200,
-    height: 200,
-    marginBottom: 4,
+    width: 180,
+    height: 180,
+    marginBottom: 2,
   },
 
   appName: {
-    fontSize: 28,
+    fontSize: 27,
     fontWeight: "900",
     color: "#083A5A",
-    marginBottom: 12,
+    marginBottom: 10,
     textAlign: "center",
-    letterSpacing: -0.5,
+    letterSpacing: -0.4,
   },
 
   appSubtitle: {
-    fontSize: 19,
-    lineHeight: 30,
+    fontSize: 18,
+    lineHeight: 29,
     color: "#315B73",
     textAlign: "center",
-    marginBottom: 24,
     fontWeight: "700",
   },
 
   homeFeatureBox: {
     width: "100%",
-    backgroundColor: "#EFF7FB",
-    borderRadius: 22,
-    padding: 20,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 28,
+    padding: 22,
     borderWidth: 1.5,
-    borderColor: "#B8D8E8",
-    marginBottom: 24,
+    borderColor: "#D8E7F0",
+    marginBottom: 22,
+    shadowColor: "#0B3A59",
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 6 },
   },
 
   homeFeatureTitle: {
-    fontSize: 21,
+    fontSize: 20,
     fontWeight: "900",
     color: "#083A5A",
     marginBottom: 12,
   },
 
   homeFeatureText: {
-    fontSize: 19,
-    lineHeight: 33,
+    fontSize: 18,
+    lineHeight: 32,
     color: "#164B6A",
     fontWeight: "800",
   },
@@ -1120,17 +1160,17 @@ const styles = StyleSheet.create({
   startButton: {
     width: "100%",
     backgroundColor: "#0B78A6",
-    borderRadius: 22,
-    paddingVertical: 22,
+    borderRadius: 24,
+    paddingVertical: 20,
     alignItems: "center",
     shadowColor: "#0B3A59",
-    shadowOpacity: 0.15,
+    shadowOpacity: 0.16,
     shadowRadius: 8,
     shadowOffset: { width: 0, height: 5 },
   },
 
   startButtonText: {
-    fontSize: 24,
+    fontSize: 23,
     fontWeight: "900",
     color: "#FFFFFF",
   },
@@ -1141,10 +1181,10 @@ const styles = StyleSheet.create({
   },
 
   topBar: {
-    minHeight: 86,
+    minHeight: 82,
     backgroundColor: "#FFFFFF",
-    paddingHorizontal: 18,
-    paddingVertical: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 11,
     flexDirection: "row",
     alignItems: "center",
     borderBottomWidth: 1.5,
@@ -1152,17 +1192,17 @@ const styles = StyleSheet.create({
   },
 
   backIconButton: {
-    width: 52,
-    height: 52,
+    width: 50,
+    height: 50,
     borderRadius: 18,
     backgroundColor: "#EDF5FA",
     alignItems: "center",
     justifyContent: "center",
-    marginRight: 14,
+    marginRight: 12,
   },
 
   backIconText: {
-    fontSize: 32,
+    fontSize: 30,
     fontWeight: "900",
     color: "#083A5A",
   },
@@ -1172,21 +1212,21 @@ const styles = StyleSheet.create({
   },
 
   topBarTitle: {
-    fontSize: 25,
+    fontSize: 23,
     fontWeight: "900",
     color: "#083A5A",
   },
 
   topBarSubtitle: {
-    fontSize: 15,
+    fontSize: 14,
     color: "#4A7087",
     fontWeight: "800",
-    marginTop: 3,
+    marginTop: 2,
   },
 
   logoMini: {
-    width: 56,
-    height: 56,
+    width: 54,
+    height: 54,
     borderRadius: 18,
     backgroundColor: "#FFFFFF",
     alignItems: "center",
@@ -1196,13 +1236,13 @@ const styles = StyleSheet.create({
   },
 
   logoMiniImage: {
-    width: 50,
-    height: 50,
+    width: 48,
+    height: 48,
   },
 
   screenBody: {
-    padding: 22,
-    paddingBottom: 44,
+    padding: 18,
+    paddingBottom: 40,
   },
 
   stepBadge: {
@@ -1210,12 +1250,12 @@ const styles = StyleSheet.create({
     backgroundColor: "#DFF1FA",
     borderRadius: 999,
     paddingVertical: 8,
-    paddingHorizontal: 16,
+    paddingHorizontal: 15,
     marginBottom: 10,
   },
 
   stepBadgeText: {
-    fontSize: 17,
+    fontSize: 16,
     fontWeight: "900",
     color: "#0B5D83",
   },
@@ -1223,48 +1263,48 @@ const styles = StyleSheet.create({
   sectionCard: {
     backgroundColor: "#FFFFFF",
     borderRadius: 28,
-    padding: 23,
-    marginBottom: 22,
+    padding: 20,
+    marginBottom: 20,
     borderWidth: 1.4,
     borderColor: "#D8E7F0",
     shadowColor: "#0B3A59",
-    shadowOpacity: 0.06,
+    shadowOpacity: 0.055,
     shadowRadius: 9,
     shadowOffset: { width: 0, height: 4 },
   },
 
   sectionTitle: {
-    fontSize: 25,
+    fontSize: 23,
     fontWeight: "900",
     color: "#083A5A",
     marginBottom: 10,
   },
 
   sectionDescription: {
-    fontSize: 19,
-    lineHeight: 31,
+    fontSize: 17,
+    lineHeight: 29,
     color: "#315B73",
-    marginBottom: 18,
+    marginBottom: 16,
     fontWeight: "700",
   },
 
   textArea: {
-    minHeight: 190,
+    minHeight: 175,
     backgroundColor: "#F8FBFD",
-    borderRadius: 20,
+    borderRadius: 22,
     borderWidth: 2,
     borderColor: "#BCD7E5",
-    padding: 18,
-    fontSize: 20,
-    lineHeight: 33,
+    padding: 16,
+    fontSize: 18,
+    lineHeight: 31,
     color: "#0B2535",
     marginBottom: 18,
   },
 
   voicePanel: {
     backgroundColor: "#F8FBFD",
-    borderRadius: 22,
-    padding: 18,
+    borderRadius: 24,
+    padding: 16,
     borderWidth: 1.8,
     borderColor: "#BCD7E5",
   },
@@ -1277,47 +1317,47 @@ const styles = StyleSheet.create({
   },
 
   voiceTitle: {
-    fontSize: 22,
+    fontSize: 20,
     fontWeight: "900",
     color: "#083A5A",
   },
 
   voiceModeBadge: {
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: "900",
     color: "#0B5D83",
     backgroundColor: "#DFF1FA",
     paddingVertical: 6,
-    paddingHorizontal: 11,
+    paddingHorizontal: 10,
     borderRadius: 999,
   },
 
   voiceDescription: {
-    fontSize: 17,
-    lineHeight: 28,
+    fontSize: 16,
+    lineHeight: 27,
     color: "#4A7087",
-    marginBottom: 15,
+    marginBottom: 14,
     fontWeight: "700",
   },
 
   voiceButtonRow: {
     flexDirection: "row",
-    gap: 12,
+    gap: 10,
   },
 
   voiceStartButton: {
     flex: 1,
     backgroundColor: "#DFF1FA",
-    borderRadius: 18,
-    paddingVertical: 18,
-    paddingHorizontal: 10,
+    borderRadius: 20,
+    paddingVertical: 17,
+    paddingHorizontal: 8,
     alignItems: "center",
     borderWidth: 1.8,
     borderColor: "#8FC7DE",
   },
 
   voiceStartButtonText: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: "900",
     color: "#0B5D83",
     marginBottom: 5,
@@ -1327,16 +1367,16 @@ const styles = StyleSheet.create({
   voiceReplaceButton: {
     flex: 1,
     backgroundColor: "#EEF6FA",
-    borderRadius: 18,
-    paddingVertical: 18,
-    paddingHorizontal: 10,
+    borderRadius: 20,
+    paddingVertical: 17,
+    paddingHorizontal: 8,
     alignItems: "center",
     borderWidth: 1.8,
     borderColor: "#BCD7E5",
   },
 
   voiceReplaceButtonText: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: "900",
     color: "#164B6A",
     marginBottom: 5,
@@ -1344,7 +1384,7 @@ const styles = StyleSheet.create({
   },
 
   voiceSubText: {
-    fontSize: 14,
+    fontSize: 13,
     color: "#315B73",
     fontWeight: "800",
     textAlign: "center",
@@ -1352,8 +1392,8 @@ const styles = StyleSheet.create({
 
   recordingBox: {
     backgroundColor: "#FFF7ED",
-    borderRadius: 20,
-    padding: 18,
+    borderRadius: 22,
+    padding: 16,
     borderWidth: 1.8,
     borderColor: "#FDBA74",
   },
@@ -1365,22 +1405,22 @@ const styles = StyleSheet.create({
   },
 
   recordDot: {
-    width: 14,
-    height: 14,
+    width: 13,
+    height: 13,
     borderRadius: 999,
     backgroundColor: "#EF4444",
     marginRight: 10,
   },
 
   recordingTitle: {
-    fontSize: 21,
+    fontSize: 20,
     fontWeight: "900",
     color: "#9A3412",
   },
 
   recordingGuide: {
-    fontSize: 17,
-    lineHeight: 28,
+    fontSize: 16,
+    lineHeight: 27,
     color: "#9A3412",
     marginBottom: 14,
     fontWeight: "800",
@@ -1388,44 +1428,44 @@ const styles = StyleSheet.create({
 
   transcriptBox: {
     backgroundColor: "#FFFFFF",
-    borderRadius: 16,
-    padding: 14,
+    borderRadius: 18,
+    padding: 13,
     marginBottom: 12,
     borderWidth: 1.2,
     borderColor: "#FED7AA",
   },
 
   transcriptLabel: {
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: "900",
     color: "#9A3412",
     marginBottom: 6,
   },
 
   transcriptText: {
-    fontSize: 18,
-    lineHeight: 29,
+    fontSize: 17,
+    lineHeight: 28,
     color: "#111827",
     fontWeight: "700",
   },
 
   stopButton: {
     backgroundColor: "#C2410C",
-    borderRadius: 18,
-    paddingVertical: 18,
+    borderRadius: 20,
+    paddingVertical: 17,
     alignItems: "center",
     marginTop: 2,
   },
 
   stopButtonText: {
     color: "#FFFFFF",
-    fontSize: 19,
+    fontSize: 18,
     fontWeight: "900",
   },
 
   voiceMessage: {
-    fontSize: 16,
-    lineHeight: 26,
+    fontSize: 15,
+    lineHeight: 25,
     color: "#315B73",
     fontWeight: "800",
     marginTop: 12,
@@ -1433,30 +1473,30 @@ const styles = StyleSheet.create({
 
   photoButtonRow: {
     flexDirection: "row",
-    gap: 12,
+    gap: 10,
     marginBottom: 16,
   },
 
   photoButton: {
     flex: 1,
     backgroundColor: "#EFF7FB",
-    borderRadius: 18,
-    paddingVertical: 18,
+    borderRadius: 20,
+    paddingVertical: 17,
     alignItems: "center",
     borderWidth: 1.8,
     borderColor: "#8FC7DE",
   },
 
   photoButtonText: {
-    fontSize: 19,
+    fontSize: 18,
     fontWeight: "900",
     color: "#0B5D83",
   },
 
   photoPreviewBox: {
     backgroundColor: "#F8FBFD",
-    borderRadius: 20,
-    padding: 16,
+    borderRadius: 22,
+    padding: 15,
     borderWidth: 1.8,
     borderColor: "#BCD7E5",
     marginBottom: 16,
@@ -1470,21 +1510,21 @@ const styles = StyleSheet.create({
   },
 
   photoPreviewTitle: {
-    fontSize: 18,
+    fontSize: 17,
     fontWeight: "900",
     color: "#083A5A",
   },
 
   photoRemoveText: {
-    fontSize: 17,
+    fontSize: 16,
     fontWeight: "900",
     color: "#B91C1C",
   },
 
   medicineImageFrame: {
     width: "100%",
-    height: 260,
-    borderRadius: 17,
+    height: 235,
+    borderRadius: 20,
     backgroundColor: "#FFFFFF",
     overflow: "hidden",
     alignItems: "center",
@@ -1500,33 +1540,33 @@ const styles = StyleSheet.create({
   },
 
   photoAnalysisText: {
-    fontSize: 17,
-    lineHeight: 28,
+    fontSize: 16,
+    lineHeight: 27,
     color: "#083A5A",
     fontWeight: "800",
   },
 
   emptyPhotoBox: {
-    minHeight: 190,
-    borderRadius: 20,
+    minHeight: 172,
+    borderRadius: 22,
     backgroundColor: "#F8FBFD",
     borderWidth: 2,
     borderColor: "#BCD7E5",
     borderStyle: "dashed",
     alignItems: "center",
     justifyContent: "center",
-    padding: 24,
+    padding: 22,
     marginBottom: 16,
   },
 
   emptyPhotoIcon: {
-    fontSize: 46,
-    marginBottom: 12,
+    fontSize: 42,
+    marginBottom: 10,
   },
 
   emptyPhotoText: {
-    fontSize: 18,
-    lineHeight: 29,
+    fontSize: 17,
+    lineHeight: 28,
     color: "#315B73",
     textAlign: "center",
     fontWeight: "800",
@@ -1534,8 +1574,8 @@ const styles = StyleSheet.create({
 
   mainButton: {
     backgroundColor: "#0B78A6",
-    borderRadius: 22,
-    paddingVertical: 22,
+    borderRadius: 24,
+    paddingVertical: 20,
     alignItems: "center",
     marginBottom: 14,
     shadowColor: "#0B3A59",
@@ -1549,23 +1589,24 @@ const styles = StyleSheet.create({
   },
 
   mainButtonText: {
-    fontSize: 23,
+    fontSize: 21,
     fontWeight: "900",
     color: "#FFFFFF",
     textAlign: "center",
+    paddingHorizontal: 8,
   },
 
   clearButton: {
     backgroundColor: "#FFFFFF",
-    borderRadius: 20,
-    paddingVertical: 18,
+    borderRadius: 22,
+    paddingVertical: 17,
     alignItems: "center",
     borderWidth: 1.8,
     borderColor: "#BCD7E5",
   },
 
   clearButtonText: {
-    fontSize: 18,
+    fontSize: 17,
     fontWeight: "900",
     color: "#315B73",
   },
@@ -1573,22 +1614,22 @@ const styles = StyleSheet.create({
   summaryBox: {
     backgroundColor: "#DFF1FA",
     borderRadius: 24,
-    padding: 24,
+    padding: 22,
     borderWidth: 1.8,
     borderColor: "#8FC7DE",
-    marginBottom: 20,
+    marginBottom: 18,
   },
 
   summaryTitle: {
-    fontSize: 22,
+    fontSize: 21,
     fontWeight: "900",
     color: "#083A5A",
     marginBottom: 10,
   },
 
   summaryText: {
-    fontSize: 20,
-    lineHeight: 33,
+    fontSize: 18,
+    lineHeight: 31,
     color: "#083A5A",
     fontWeight: "800",
   },
@@ -1596,8 +1637,8 @@ const styles = StyleSheet.create({
   infoCard: {
     backgroundColor: "#FFFFFF",
     borderRadius: 24,
-    padding: 24,
-    marginBottom: 18,
+    padding: 22,
+    marginBottom: 16,
     borderWidth: 1.8,
     borderColor: "#D8E7F0",
     shadowColor: "#0B3A59",
@@ -1607,33 +1648,33 @@ const styles = StyleSheet.create({
   },
 
   infoCardTitle: {
-    fontSize: 23,
+    fontSize: 21,
     fontWeight: "900",
     color: "#083A5A",
-    marginBottom: 14,
-    paddingBottom: 12,
+    marginBottom: 13,
+    paddingBottom: 11,
     borderBottomWidth: 2,
     borderBottomColor: "#EFF7FB",
   },
 
   infoCardText: {
-    fontSize: 19,
-    lineHeight: 33,
+    fontSize: 17,
+    lineHeight: 30,
     color: "#17384A",
     fontWeight: "700",
   },
 
   actionPanel: {
     flexDirection: "row",
-    gap: 12,
+    gap: 10,
     marginTop: 8,
   },
 
   familyButton: {
     flex: 1,
     backgroundColor: "#0B78A6",
-    borderRadius: 20,
-    paddingVertical: 20,
+    borderRadius: 22,
+    paddingVertical: 18,
     alignItems: "center",
     borderWidth: 1.8,
     borderColor: "#086083",
@@ -1642,15 +1683,15 @@ const styles = StyleSheet.create({
   familyButtonLarge: {
     marginTop: 18,
     backgroundColor: "#0B78A6",
-    borderRadius: 20,
-    paddingVertical: 20,
+    borderRadius: 22,
+    paddingVertical: 18,
     alignItems: "center",
     borderWidth: 1.8,
     borderColor: "#086083",
   },
 
   familyButtonText: {
-    fontSize: 19,
+    fontSize: 17,
     fontWeight: "900",
     color: "#FFFFFF",
   },
@@ -1658,15 +1699,15 @@ const styles = StyleSheet.create({
   alarmButton: {
     flex: 1,
     backgroundColor: "#FFFFFF",
-    borderRadius: 20,
-    paddingVertical: 20,
+    borderRadius: 22,
+    paddingVertical: 18,
     alignItems: "center",
     borderWidth: 1.8,
     borderColor: "#BCD7E5",
   },
 
   alarmButtonText: {
-    fontSize: 19,
+    fontSize: 17,
     fontWeight: "900",
     color: "#315B73",
   },
@@ -1674,15 +1715,15 @@ const styles = StyleSheet.create({
   appNoticeBox: {
     marginBottom: 18,
     backgroundColor: "#DFF1FA",
-    borderRadius: 18,
+    borderRadius: 20,
     padding: 16,
     borderWidth: 1.5,
     borderColor: "#8FC7DE",
   },
 
   appNoticeText: {
-    fontSize: 17,
-    lineHeight: 27,
+    fontSize: 16,
+    lineHeight: 26,
     color: "#083A5A",
     fontWeight: "800",
   },
@@ -1690,21 +1731,21 @@ const styles = StyleSheet.create({
   familyMessageBox: {
     backgroundColor: "#FFFFFF",
     borderRadius: 24,
-    padding: 24,
+    padding: 22,
     borderWidth: 1.8,
     borderColor: "#BCD7E5",
   },
 
   familyMessageTitle: {
-    fontSize: 23,
+    fontSize: 21,
     fontWeight: "900",
     color: "#083A5A",
     marginBottom: 14,
   },
 
   familyMessageText: {
-    fontSize: 18,
-    lineHeight: 31,
+    fontSize: 16,
+    lineHeight: 29,
     color: "#17384A",
     fontWeight: "700",
   },
