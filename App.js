@@ -89,10 +89,25 @@ export default function App() {
           padding: 0;
           background: #F4F8FB;
           overflow: hidden;
+          word-break: keep-all;
+          overflow-wrap: normal;
         }
 
         * {
           box-sizing: border-box;
+          word-break: keep-all !important;
+          overflow-wrap: normal !important;
+          line-break: strict;
+        }
+
+        div, span, p, textarea, input, button {
+          word-break: keep-all !important;
+          overflow-wrap: normal !important;
+          line-break: strict;
+        }
+
+        textarea, input, button {
+          white-space: pre-wrap;
         }
 
         ::-webkit-scrollbar {
@@ -388,9 +403,9 @@ export default function App() {
   const getMedicineAnalysisText = (type) => {
     if (type === "diabetes") {
       return {
-        title: "당뇨약 또는 혈당 조절 관련 단서가 확인되었습니다.",
+        title: "당뇨약 또는 혈당 조절 단서가 확인되었습니다.",
         message:
-          "당뇨약은 약마다 복용 시간이 다를 수 있으므로 약 봉투의 복용법을 꼭 확인해야 합니다. 식은땀, 손떨림, 심한 어지러움 같은 저혈당 증상이 생기면 주의가 필요합니다.",
+          "약마다 복용 시간이 다를 수 있습니다.\n약 봉투의 복용법을 꼭 확인해주세요.\n식은땀, 손떨림, 심한 어지러움은 저혈당 증상일 수 있습니다.",
       };
     }
 
@@ -398,22 +413,22 @@ export default function App() {
       return {
         title: "혈압약 관련 단서가 확인되었습니다.",
         message:
-          "혈압약은 증상이 없어도 매일 같은 시간에 꾸준히 복용하는 것이 중요합니다. 임의로 중단하면 혈압이 다시 올라갈 수 있습니다.",
+          "혈압약은 매일 같은 시간에 꾸준히 드시는 것이 중요합니다.\n증상이 없다고 임의로 중단하면 혈압이 다시 올라갈 수 있습니다.",
       };
     }
 
     if (type === "reflux") {
       return {
-        title: "위산 억제제 또는 역류성 식도염 관련 단서가 확인되었습니다.",
+        title: "위산 억제제 관련 단서가 확인되었습니다.",
         message:
-          "위산을 줄여주는 약은 보통 식사 30분 전 공복 복용이 중요한 경우가 많습니다. 정확한 복용법은 약 봉투와 처방전을 함께 확인해야 합니다.",
+          "위산을 줄이는 약은 식사 전 복용이 중요한 경우가 많습니다.\n정확한 복용법은 약 봉투와 처방전을 함께 확인해주세요.",
       };
     }
 
     return {
-      title: "약 봉투 글자를 정확히 확인하기 어렵습니다.",
+      title: "약 봉투 글자를 확인하기 어렵습니다.",
       message:
-        "약 이름과 복용 시간이 잘 보이도록 다시 촬영하거나, 진료 내용을 직접 입력해주세요.",
+        "약 이름과 복용 시간이 잘 보이도록 다시 촬영해주세요.\n또는 진료 내용을 직접 입력해주세요.",
     };
   };
 
@@ -575,52 +590,52 @@ export default function App() {
     if (type === "diabetes") {
       return {
         summary:
-          "당뇨약 또는 혈당 조절 관련 단서가 확인되었으며, 약 복용 시간과 식사 시간을 함께 지키는 것이 중요합니다.",
+          "당뇨약 또는 혈당 조절 단서가 확인되었습니다.\n약 복용 시간과 식사 시간을 함께 지키는 것이 중요합니다.",
         disease:
-          "당뇨병은 혈액 속 포도당, 즉 혈당이 높게 유지되는 병이에요. 혈당이 오래 높으면 눈, 콩팥, 신경, 혈관에 문제가 생길 수 있어서 꾸준한 관리가 필요해요.",
+          "당뇨병은 혈액 속 포도당, 즉 혈당이 높게 유지되는 병입니다. 혈당이 오래 높으면 눈, 콩팥, 신경, 혈관에 문제가 생길 수 있어 꾸준한 관리가 필요합니다.",
         medicine:
-          "당뇨약은 약 종류에 따라 식전·식후 복용법이 다를 수 있으므로 약 봉투의 복용 시간을 꼭 확인해주세요. 식사를 거른 상태에서 약을 먹으면 저혈당이 생길 수 있어 주의가 필요합니다.",
+          "당뇨약은 약 종류에 따라 복용 시간이 다를 수 있습니다. 식전, 식후 복용법을 약 봉투에서 꼭 확인해주세요. 식사를 거른 상태에서 약을 먹으면 저혈당이 생길 수 있습니다.",
         caution:
-          "식사를 거르지 않고 규칙적으로 드시는 것이 중요해요. 단 음료나 과도한 간식은 줄이고, 혈당을 기록하면 치료 조절에 도움이 됩니다.",
+          "식사를 거르지 않고 규칙적으로 드시는 것이 중요합니다. 단 음료나 과도한 간식은 줄이고, 혈당을 기록하면 치료 조절에 도움이 됩니다.",
         hospital:
-          "식은땀, 손떨림, 심한 어지러움, 의식이 흐려지는 증상은 저혈당일 수 있어요. 이런 증상이 반복되거나 혈당이 너무 높게 유지되면 병원에 문의해야 해요.",
+          "식은땀, 손떨림, 심한 어지러움, 의식이 흐려지는 증상은 저혈당일 수 있습니다. 이런 증상이 반복되거나 혈당이 너무 높게 유지되면 병원에 문의해주세요.",
       };
     }
 
     if (type === "bloodPressure") {
       return {
         summary:
-          "혈압약 관련 단서가 확인되었으며, 증상이 없어도 매일 같은 시간에 꾸준히 복용하는 것이 중요합니다.",
+          "혈압약 관련 단서가 확인되었습니다.\n증상이 없어도 매일 같은 시간에 꾸준히 복용하는 것이 중요합니다.",
         disease:
-          "고혈압은 혈관 안의 압력이 계속 높은 상태예요. 당장 증상이 없더라도 오래 지속되면 심장, 뇌혈관, 콩팥에 부담을 줄 수 있어서 꾸준한 관리가 중요해요.",
+          "고혈압은 혈관 안의 압력이 계속 높은 상태입니다. 증상이 없어도 오래 지속되면 심장, 뇌혈관, 콩팥에 부담을 줄 수 있습니다.",
         medicine:
-          "혈압약은 매일 같은 시간에 꾸준히 드시는 것이 중요해요. 증상이 없다고 임의로 끊으면 혈압이 다시 올라갈 수 있습니다.",
+          "혈압약은 매일 같은 시간에 꾸준히 드시는 것이 중요합니다. 증상이 없다고 임의로 끊으면 혈압이 다시 올라갈 수 있습니다.",
         caution:
-          "짠 음식은 줄이고, 규칙적인 운동과 체중 관리가 도움이 돼요. 집에서 혈압을 재서 기록하면 진료 때 도움이 됩니다.",
+          "짠 음식은 줄이고, 규칙적인 운동과 체중 관리가 도움이 됩니다. 집에서 혈압을 재서 기록하면 진료 때 도움이 됩니다.",
         hospital:
-          "심한 두통, 가슴통증, 숨참, 한쪽 팔다리 마비, 말이 어눌해지는 증상이 있으면 바로 진료를 받아야 해요.",
+          "심한 두통, 가슴통증, 숨참, 한쪽 팔다리 마비, 말이 어눌해지는 증상이 있으면 바로 진료를 받아야 합니다.",
       };
     }
 
     if (type === "reflux") {
       return {
         summary:
-          "역류성 식도염 또는 위산 관련 단서가 확인되며, 위산 억제제는 식전 30분 복용 여부를 약 봉투에서 확인하는 것이 중요합니다.",
+          "역류성 식도염 또는 위산 관련 단서가 확인되었습니다.\n약 복용 시간과 식습관을 함께 확인하는 것이 중요합니다.",
         disease:
-          "역류성 식도염은 위에 있는 음식물이나 위산이 식도로 거꾸로 올라와서 가슴이 쓰리거나 신물이 올라오는 병이에요. 약을 잘 드시고 생활습관을 조절하면 대부분 증상이 좋아질 수 있어요.",
+          "역류성 식도염은 위산이나 음식물이 식도로 거꾸로 올라오는 병입니다. 가슴 쓰림이나 신물이 올라오는 증상이 생길 수 있습니다.",
         medicine:
-          "위산을 줄여주는 약은 보통 식사 30분 전 공복에 복용할 때 효과가 좋습니다. 다만 정확한 복용 시간은 약 봉투와 처방전을 우선 확인해주세요.",
+          "위산을 줄이는 약은 식사 전에 복용할 때 효과가 좋은 경우가 많습니다. 정확한 복용 시간은 약 봉투와 처방전을 확인해주세요.",
         caution:
-          "매운 음식, 카페인, 기름진 음식, 술은 피해주세요. 식사 후 2시간 동안은 눕지 마시고, 잠자기 3시간 전에는 음식을 드시지 않는 것이 좋아요.",
+          "매운 음식, 카페인, 기름진 음식, 술은 피하는 것이 좋습니다. 식사 후 바로 눕지 말고, 잠자기 전에는 음식을 줄이는 것이 도움이 됩니다.",
         hospital:
-          "한 달 뒤에도 증상이 계속되거나 더 심해지면 병원에 다시 방문해야 해요. 피를 토하거나, 검은 변을 보거나, 삼키기 힘든 증상이 생기면 빨리 진료를 받는 것이 좋아요.",
+          "증상이 계속되거나 더 심해지면 병원에 다시 방문해야 합니다. 피를 토하거나 검은 변을 보거나 삼키기 힘들면 빨리 진료를 받아야 합니다.",
       };
     }
 
     if (medicinePhotoUri && !userInput.trim()) {
       return {
         summary:
-          "약 봉투 사진이 첨부되었습니다. 약 이름과 복용법은 약 봉투와 처방전을 함께 확인하는 것이 중요합니다.",
+          "약 봉투 사진이 첨부되었습니다.\n약 이름과 복용법은 약 봉투와 처방전을 함께 확인해주세요.",
         disease:
           "현재는 진료 내용이 입력되지 않아 정확한 병명은 알 수 없습니다. 병명이나 증상을 함께 입력하면 더 구체적인 설명을 받을 수 있습니다.",
         medicine:
@@ -635,19 +650,19 @@ export default function App() {
 
     return {
       summary:
-        "입력하신 진료 내용을 바탕으로, 정확한 진단명·복약법·주의사항은 처방전과 의료진 설명을 함께 확인하는 것이 중요합니다.",
+        "입력하신 진료 내용을 바탕으로 정리했습니다.\n정확한 내용은 처방전과 의료진 설명을 함께 확인해주세요.",
       disease:
-        "입력하신 진료 내용을 바탕으로 보면, 현재 증상과 의사 선생님의 설명을 쉽게 정리해 이해하는 것이 중요해요. 정확한 진단명은 의료진의 설명과 처방전을 함께 확인해야 해요.",
+        "입력하신 진료 내용을 바탕으로 보면, 현재 증상과 의사 선생님의 설명을 쉽게 정리해 이해하는 것이 중요합니다. 정확한 진단명은 의료진의 설명과 처방전을 함께 확인해주세요.",
       medicine: medicinePhotoUri
-        ? `약 봉투 사진이 함께 첨부되었습니다. ${
+        ? `약 봉투 사진이 함께 첨부되었습니다.\n${
             medicinePhotoAnalysis ||
-            "약 봉투의 약 이름과 복용 시간을 확인한 뒤 처방받은 용법과 용량에 맞춰 복용해야 합니다."
+            "약 이름과 복용 시간을 확인한 뒤, 처방받은 용법과 용량에 맞춰 복용해야 합니다."
           }`
-        : "약은 처방받은 용법과 용량에 맞춰 복용해야 해요. 식전, 식후, 자기 전 등 복용 시간이 다를 수 있으므로 약 봉투나 처방전을 꼭 확인해주세요.",
+        : "약은 처방받은 용법과 용량에 맞춰 복용해야 합니다. 식전, 식후, 자기 전 등 복용 시간이 다를 수 있으므로 약 봉투나 처방전을 꼭 확인해주세요.",
       caution:
-        "생활습관 관리나 음식 조절에 대한 설명을 들었다면 잘 지키는 것이 좋아요. 증상이 갑자기 심해지거나 평소와 다른 증상이 생기면 병원에 문의해주세요.",
+        "생활습관 관리나 음식 조절에 대한 설명을 들었다면 잘 지키는 것이 좋습니다. 증상이 갑자기 심해지거나 평소와 다른 증상이 생기면 병원에 문의해주세요.",
       hospital:
-        "호흡곤란, 심한 통증, 고열, 의식 저하, 심한 알레르기 반응이 생기면 바로 병원에 문의해야 해요. 재진 일정이 안내되었다면 꼭 지키는 것이 좋아요.",
+        "호흡곤란, 심한 통증, 고열, 의식 저하, 심한 알레르기 반응이 생기면 바로 병원에 문의해야 합니다. 재진 일정이 안내되었다면 꼭 지켜주세요.",
     };
   };
 
@@ -656,7 +671,7 @@ export default function App() {
       setResult({
         summary: "진료 내용 또는 약 봉투 사진을 먼저 입력해주세요.",
         disease:
-          "직접 입력하거나, 음성 입력 버튼을 눌러 진료 중 들은 내용을 말씀해주시면 됩니다.",
+          "직접 입력하거나, 음성 입력 버튼을 눌러 진료 중 들은 내용을 말씀해주세요.",
         medicine:
           "약 봉투 사진을 함께 첨부하면 약 이름과 복용법 단서를 확인해 복약 설명에 반영할 수 있습니다.",
         caution:
@@ -779,12 +794,18 @@ ${photoLine}
           style={styles.backIconButton}
           onPress={() => setScreen(backTarget || "home")}
         >
-          <Text style={styles.backIconText}>←</Text>
+          <Text style={styles.backIconText} numberOfLines={1}>
+            ←
+          </Text>
         </TouchableOpacity>
 
         <View style={styles.topBarTitleBox}>
-          <Text style={styles.topBarTitle}>{title}</Text>
-          <Text style={styles.topBarSubtitle}>MyDoctor</Text>
+          <Text style={styles.topBarTitle} numberOfLines={1}>
+            {title}
+          </Text>
+          <Text style={styles.topBarSubtitle} numberOfLines={1}>
+            MyDoctor
+          </Text>
         </View>
 
         <TouchableOpacity
@@ -811,8 +832,12 @@ ${photoLine}
 
         <View style={styles.homeFeatureBox}>
           <View style={styles.homeFeatureHeader}>
-            <Text style={styles.homeFeatureIcon}>✧</Text>
-            <Text style={styles.homeFeatureTitle}>이 앱으로 할 수 있는 일</Text>
+            <Text style={styles.homeFeatureIcon} numberOfLines={1}>
+              ✧
+            </Text>
+            <Text style={styles.homeFeatureTitle} numberOfLines={1}>
+              이 앱으로 할 수 있는 일
+            </Text>
           </View>
 
           <Text style={styles.homeFeatureText}>✓ 어려운 진료 내용을 쉽게 보기</Text>
@@ -824,7 +849,9 @@ ${photoLine}
           style={styles.startButton}
           onPress={() => setScreen("input")}
         >
-          <Text style={styles.startButtonText}>시작하기</Text>
+          <Text style={styles.startButtonText} numberOfLines={1}>
+            시작하기
+          </Text>
         </TouchableOpacity>
       </View>
     );
@@ -837,11 +864,15 @@ ${photoLine}
 
         <ScrollView contentContainerStyle={styles.screenBody}>
           <View style={styles.stepBadge}>
-            <Text style={styles.stepBadgeText}>1단계</Text>
+            <Text style={styles.stepBadgeText} numberOfLines={1}>
+              1단계
+            </Text>
           </View>
 
           <View style={styles.sectionCard}>
-            <Text style={styles.sectionTitle}>진료실에서 들은 내용을 적어주세요</Text>
+            <Text style={styles.sectionTitle}>
+              진료실에서 들은 내용을 적어주세요
+            </Text>
             <Text style={styles.sectionDescription}>
               직접 입력해도 되고, 아래 음성 입력 버튼을 눌러 말해도 됩니다.
             </Text>
@@ -858,9 +889,11 @@ ${photoLine}
 
             <View style={styles.voicePanel}>
               <View style={styles.voiceHeaderRow}>
-                <Text style={styles.voiceTitle}>음성으로 입력하기</Text>
+                <Text style={styles.voiceTitle} numberOfLines={1}>
+                  음성으로 입력하기
+                </Text>
                 {voiceMode ? (
-                  <Text style={styles.voiceModeBadge}>
+                  <Text style={styles.voiceModeBadge} numberOfLines={1}>
                     {voiceMode === "append" ? "이어 말하기" : "처음부터 말하기"}
                   </Text>
                 ) : null}
@@ -876,23 +909,33 @@ ${photoLine}
                     style={styles.voiceStartButton}
                     onPress={() => startVoiceWithMode("append")}
                   >
-                    <Text style={styles.voiceStartButtonText}>🎤 이어 말하기</Text>
-                    <Text style={styles.voiceSubText}>기존 내용 뒤에 추가</Text>
+                    <Text style={styles.voiceStartButtonText} numberOfLines={1}>
+                      🎤 이어 말하기
+                    </Text>
+                    <Text style={styles.voiceSubText} numberOfLines={1}>
+                      기존 내용 뒤에 추가
+                    </Text>
                   </TouchableOpacity>
 
                   <TouchableOpacity
                     style={styles.voiceReplaceButton}
                     onPress={() => startVoiceWithMode("replace")}
                   >
-                    <Text style={styles.voiceReplaceButtonText}>↻ 처음부터 말하기</Text>
-                    <Text style={styles.voiceSubText}>입력창을 비우고 시작</Text>
+                    <Text style={styles.voiceReplaceButtonText} numberOfLines={1}>
+                      ↻ 처음부터 말하기
+                    </Text>
+                    <Text style={styles.voiceSubText} numberOfLines={1}>
+                      입력창을 비우고 시작
+                    </Text>
                   </TouchableOpacity>
                 </View>
               ) : (
                 <View style={styles.recordingBox}>
                   <View style={styles.recordingTopRow}>
                     <View style={styles.recordDot} />
-                    <Text style={styles.recordingTitle}>듣는 중입니다</Text>
+                    <Text style={styles.recordingTitle} numberOfLines={1}>
+                      듣는 중입니다
+                    </Text>
                   </View>
 
                   <Text style={styles.recordingGuide}>
@@ -901,13 +944,17 @@ ${photoLine}
 
                   {liveTranscript ? (
                     <View style={styles.transcriptBox}>
-                      <Text style={styles.transcriptLabel}>지금 듣고 있는 말</Text>
+                      <Text style={styles.transcriptLabel} numberOfLines={1}>
+                        지금 듣고 있는 말
+                      </Text>
                       <Text style={styles.transcriptText}>{liveTranscript}</Text>
                     </View>
                   ) : null}
 
                   <TouchableOpacity style={styles.stopButton} onPress={stopVoiceInput}>
-                    <Text style={styles.stopButtonText}>⏹ 듣기 중지하고 입력하기</Text>
+                    <Text style={styles.stopButtonText} numberOfLines={1}>
+                      ⏹ 듣기 중지하고 입력하기
+                    </Text>
                   </TouchableOpacity>
                 </View>
               )}
@@ -919,11 +966,15 @@ ${photoLine}
           </View>
 
           <View style={styles.stepBadge}>
-            <Text style={styles.stepBadgeText}>2단계</Text>
+            <Text style={styles.stepBadgeText} numberOfLines={1}>
+              2단계
+            </Text>
           </View>
 
           <View style={styles.sectionCard}>
-            <Text style={styles.sectionTitle}>약 봉투 사진이 있으면 넣어주세요</Text>
+            <Text style={styles.sectionTitle}>
+              약 봉투 사진이 있으면 넣어주세요
+            </Text>
             <Text style={styles.sectionDescription}>
               약 이름이 기억나지 않을 때 도움이 됩니다. 없으면 건너뛰어도 됩니다.
             </Text>
@@ -933,23 +984,31 @@ ${photoLine}
                 style={styles.photoButton}
                 onPress={() => openPhotoInput("gallery")}
               >
-                <Text style={styles.photoButtonText}>🖼️ 사진 선택</Text>
+                <Text style={styles.photoButtonText} numberOfLines={1}>
+                  🖼️ 사진 선택
+                </Text>
               </TouchableOpacity>
 
               <TouchableOpacity
                 style={styles.photoButton}
                 onPress={() => openPhotoInput("camera")}
               >
-                <Text style={styles.photoButtonText}>📷 촬영하기</Text>
+                <Text style={styles.photoButtonText} numberOfLines={1}>
+                  📷 촬영하기
+                </Text>
               </TouchableOpacity>
             </View>
 
             {medicinePhotoUri ? (
               <View style={styles.photoPreviewBox}>
                 <View style={styles.photoPreviewHeader}>
-                  <Text style={styles.photoPreviewTitle}>첨부된 약 봉투 사진</Text>
+                  <Text style={styles.photoPreviewTitle} numberOfLines={1}>
+                    첨부된 약 봉투 사진
+                  </Text>
                   <TouchableOpacity onPress={handleRemoveMedicinePhoto}>
-                    <Text style={styles.photoRemoveText}>삭제</Text>
+                    <Text style={styles.photoRemoveText} numberOfLines={1}>
+                      삭제
+                    </Text>
                   </TouchableOpacity>
                 </View>
 
@@ -975,9 +1034,11 @@ ${photoLine}
               </View>
             ) : (
               <View style={styles.emptyPhotoBox}>
-                <Text style={styles.emptyPhotoIcon}>📄</Text>
+                <Text style={styles.emptyPhotoIcon} numberOfLines={1}>
+                  📄
+                </Text>
                 <Text style={styles.emptyPhotoText}>
-                  약 봉투 사진을 넣으면 복약 설명에 함께 반영됩니다.
+                  약 봉투 사진을 넣으면{"\n"}복약 설명에 함께 반영됩니다.
                 </Text>
               </View>
             )}
@@ -988,7 +1049,7 @@ ${photoLine}
             onPress={handleTranslate}
             disabled={isLoading}
           >
-            <Text style={styles.mainButtonText}>
+            <Text style={styles.mainButtonText} numberOfLines={2}>
               {isLoading
                 ? "진료 내용을 쉬운 설명 카드로 정리하고 있습니다."
                 : "AI로 쉽게 정리하기"}
@@ -996,7 +1057,9 @@ ${photoLine}
           </TouchableOpacity>
 
           <TouchableOpacity style={styles.clearButton} onPress={handleClear}>
-            <Text style={styles.clearButtonText}>전체 입력 지우기</Text>
+            <Text style={styles.clearButtonText} numberOfLines={1}>
+              전체 입력 지우기
+            </Text>
           </TouchableOpacity>
         </ScrollView>
       </View>
@@ -1021,11 +1084,15 @@ ${photoLine}
 
           <View style={styles.actionPanel}>
             <TouchableOpacity style={styles.familyButton} onPress={handleNotifyFamily}>
-              <Text style={styles.familyButtonText}>가족에게 알리기</Text>
+              <Text style={styles.familyButtonText} numberOfLines={1}>
+                가족에게 알리기
+              </Text>
             </TouchableOpacity>
 
             <TouchableOpacity style={styles.alarmButton} onPress={handleMedicineAlarm}>
-              <Text style={styles.alarmButtonText}>약 알림 설정</Text>
+              <Text style={styles.alarmButtonText} numberOfLines={1}>
+                약 알림 설정
+              </Text>
             </TouchableOpacity>
           </View>
         </ScrollView>
@@ -1054,12 +1121,16 @@ ${photoLine}
           ) : null}
 
           <View style={styles.familyMessageBox}>
-            <Text style={styles.familyMessageTitle}>보호자용 요약문</Text>
+            <Text style={styles.familyMessageTitle} numberOfLines={1}>
+              보호자용 요약문
+            </Text>
             <Text style={styles.familyMessageText}>{message}</Text>
           </View>
 
           <TouchableOpacity style={styles.familyButtonLarge} onPress={handleNotifyFamily}>
-            <Text style={styles.familyButtonText}>공유하기 / 다시 보내기</Text>
+            <Text style={styles.familyButtonText} numberOfLines={1}>
+              공유하기 / 다시 보내기
+            </Text>
           </TouchableOpacity>
         </ScrollView>
       </View>
@@ -1142,8 +1213,8 @@ const styles = StyleSheet.create({
 
   homeMainText: {
     fontFamily: FONT.koExtraBold,
-    fontSize: 21,
-    lineHeight: 34,
+    fontSize: 22,
+    lineHeight: 36,
     color: "#083A5A",
     textAlign: "center",
     letterSpacing: -0.4,
@@ -1274,7 +1345,7 @@ const styles = StyleSheet.create({
 
   screenBody: {
     padding: 18,
-    paddingBottom: 40,
+    paddingBottom: 60,
   },
 
   stepBadge: {
@@ -1307,15 +1378,16 @@ const styles = StyleSheet.create({
 
   sectionTitle: {
     fontFamily: FONT.koExtraBold,
-    fontSize: 23,
+    fontSize: 22,
+    lineHeight: 34,
     color: "#083A5A",
     marginBottom: 10,
   },
 
   sectionDescription: {
-    fontFamily: FONT.koBold,
+    fontFamily: FONT.koRegular,
     fontSize: 17,
-    lineHeight: 29,
+    lineHeight: 30,
     color: "#315B73",
     marginBottom: 16,
   },
@@ -1329,7 +1401,7 @@ const styles = StyleSheet.create({
     padding: 16,
     fontFamily: FONT.koRegular,
     fontSize: 18,
-    lineHeight: 31,
+    lineHeight: 32,
     color: "#0B2535",
     marginBottom: 18,
     outlineStyle: "none",
@@ -1367,24 +1439,24 @@ const styles = StyleSheet.create({
   },
 
   voiceDescription: {
-    fontFamily: FONT.koBold,
+    fontFamily: FONT.koRegular,
     fontSize: 16,
-    lineHeight: 27,
+    lineHeight: 28,
     color: "#4A7087",
     marginBottom: 14,
   },
 
   voiceButtonRow: {
-    flexDirection: "row",
+    flexDirection: "column",
     gap: 10,
   },
 
   voiceStartButton: {
-    flex: 1,
+    width: "100%",
     backgroundColor: "#DFF1FA",
     borderRadius: 20,
     paddingVertical: 17,
-    paddingHorizontal: 8,
+    paddingHorizontal: 12,
     alignItems: "center",
     borderWidth: 1.8,
     borderColor: "#8FC7DE",
@@ -1392,18 +1464,18 @@ const styles = StyleSheet.create({
 
   voiceStartButtonText: {
     fontFamily: FONT.koExtraBold,
-    fontSize: 16,
+    fontSize: 18,
     color: "#0B5D83",
     marginBottom: 5,
     textAlign: "center",
   },
 
   voiceReplaceButton: {
-    flex: 1,
+    width: "100%",
     backgroundColor: "#EEF6FA",
     borderRadius: 20,
     paddingVertical: 17,
-    paddingHorizontal: 8,
+    paddingHorizontal: 12,
     alignItems: "center",
     borderWidth: 1.8,
     borderColor: "#BCD7E5",
@@ -1411,15 +1483,15 @@ const styles = StyleSheet.create({
 
   voiceReplaceButtonText: {
     fontFamily: FONT.koExtraBold,
-    fontSize: 16,
+    fontSize: 18,
     color: "#164B6A",
     marginBottom: 5,
     textAlign: "center",
   },
 
   voiceSubText: {
-    fontFamily: FONT.koBold,
-    fontSize: 13,
+    fontFamily: FONT.koRegular,
+    fontSize: 14,
     color: "#315B73",
     textAlign: "center",
   },
@@ -1453,9 +1525,9 @@ const styles = StyleSheet.create({
   },
 
   recordingGuide: {
-    fontFamily: FONT.koBold,
+    fontFamily: FONT.koRegular,
     fontSize: 16,
-    lineHeight: 27,
+    lineHeight: 28,
     color: "#9A3412",
     marginBottom: 14,
   },
@@ -1477,9 +1549,9 @@ const styles = StyleSheet.create({
   },
 
   transcriptText: {
-    fontFamily: FONT.koBold,
+    fontFamily: FONT.koRegular,
     fontSize: 17,
-    lineHeight: 28,
+    lineHeight: 29,
     color: "#111827",
   },
 
@@ -1498,9 +1570,9 @@ const styles = StyleSheet.create({
   },
 
   voiceMessage: {
-    fontFamily: FONT.koBold,
+    fontFamily: FONT.koRegular,
     fontSize: 15,
-    lineHeight: 25,
+    lineHeight: 26,
     color: "#315B73",
     marginTop: 12,
   },
@@ -1516,6 +1588,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#EFF7FB",
     borderRadius: 20,
     paddingVertical: 17,
+    paddingHorizontal: 8,
     alignItems: "center",
     borderWidth: 1.8,
     borderColor: "#8FC7DE",
@@ -1574,9 +1647,9 @@ const styles = StyleSheet.create({
   },
 
   photoAnalysisText: {
-    fontFamily: FONT.koBold,
-    fontSize: 16,
-    lineHeight: 27,
+    fontFamily: FONT.koRegular,
+    fontSize: 17,
+    lineHeight: 30,
     color: "#083A5A",
   },
 
@@ -1600,9 +1673,9 @@ const styles = StyleSheet.create({
   },
 
   emptyPhotoText: {
-    fontFamily: FONT.koBold,
+    fontFamily: FONT.koRegular,
     fontSize: 17,
-    lineHeight: 28,
+    lineHeight: 30,
     color: "#315B73",
     textAlign: "center",
   },
@@ -1658,14 +1731,15 @@ const styles = StyleSheet.create({
   summaryTitle: {
     fontFamily: FONT.koExtraBold,
     fontSize: 21,
+    lineHeight: 32,
     color: "#083A5A",
     marginBottom: 10,
   },
 
   summaryText: {
-    fontFamily: FONT.koBold,
+    fontFamily: FONT.koRegular,
     fontSize: 18,
-    lineHeight: 31,
+    lineHeight: 32,
     color: "#083A5A",
   },
 
@@ -1685,6 +1759,7 @@ const styles = StyleSheet.create({
   infoCardTitle: {
     fontFamily: FONT.koExtraBold,
     fontSize: 21,
+    lineHeight: 32,
     color: "#083A5A",
     marginBottom: 13,
     paddingBottom: 11,
@@ -1693,9 +1768,9 @@ const styles = StyleSheet.create({
   },
 
   infoCardText: {
-    fontFamily: FONT.koBold,
+    fontFamily: FONT.koRegular,
     fontSize: 17,
-    lineHeight: 30,
+    lineHeight: 31,
     color: "#17384A",
   },
 
@@ -1757,9 +1832,9 @@ const styles = StyleSheet.create({
   },
 
   shareNoticeText: {
-    fontFamily: FONT.koBold,
+    fontFamily: FONT.koRegular,
     fontSize: 16,
-    lineHeight: 26,
+    lineHeight: 28,
     color: "#083A5A",
   },
 
@@ -1773,9 +1848,9 @@ const styles = StyleSheet.create({
   },
 
   appNoticeText: {
-    fontFamily: FONT.koBold,
+    fontFamily: FONT.koRegular,
     fontSize: 16,
-    lineHeight: 26,
+    lineHeight: 28,
     color: "#14532D",
   },
 
@@ -1795,9 +1870,9 @@ const styles = StyleSheet.create({
   },
 
   familyMessageText: {
-    fontFamily: FONT.koBold,
+    fontFamily: FONT.koRegular,
     fontSize: 16,
-    lineHeight: 29,
+    lineHeight: 30,
     color: "#17384A",
   },
 });
