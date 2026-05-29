@@ -14,7 +14,7 @@ import {
 
 const APP_NAME = "마이닥터";
 const APP_SUBTITLE =
-  "진료실에서 들은 어려운 말을 환자 눈높이에 맞게 쉽게 정리해주는 AI 보조 앱";
+  "진료 내용을 환자 눈높이에 맞게 쉽게 정리해주는 AI 보조 앱";
 
 const LOGO = require("./assets/mydoctor-logo.png");
 
@@ -92,12 +92,6 @@ export default function App() {
 
         ::-webkit-scrollbar-track {
           background: transparent;
-        }
-
-        @media (max-width: 520px) {
-          html, body, #root {
-            background: #F4F8FB;
-          }
         }
       `;
       document.head.appendChild(style);
@@ -772,7 +766,7 @@ ${photoLine}
 
         <View style={styles.topBarTitleBox}>
           <Text style={styles.topBarTitle}>{title}</Text>
-          <Text style={styles.topBarSubtitle}>{APP_NAME}</Text>
+          <Text style={styles.topBarSubtitle}>MyDoctor</Text>
         </View>
 
         <TouchableOpacity
@@ -792,12 +786,17 @@ ${photoLine}
         <View style={styles.homeHero}>
           <Image source={LOGO} style={styles.homeLogoImage} resizeMode="contain" />
 
-          <Text style={styles.appName}>{APP_NAME}</Text>
-          <Text style={styles.appSubtitle}>{APP_SUBTITLE}</Text>
+          <Text style={styles.homeMainText}>
+            진료실에서 들은 어려운 말을{"\n"}쉽게 정리해드려요
+          </Text>
         </View>
 
         <View style={styles.homeFeatureBox}>
-          <Text style={styles.homeFeatureTitle}>이 앱으로 할 수 있는 일</Text>
+          <View style={styles.homeFeatureHeader}>
+            <Text style={styles.homeFeatureIcon}>✧</Text>
+            <Text style={styles.homeFeatureTitle}>이 앱으로 할 수 있는 일</Text>
+          </View>
+
           <Text style={styles.homeFeatureText}>✓ 어려운 진료 내용을 쉽게 보기</Text>
           <Text style={styles.homeFeatureText}>✓ 가족에게 요약문 보내기</Text>
           <Text style={styles.homeFeatureText}>✓ 약 알림 시간 설정하기</Text>
@@ -867,7 +866,7 @@ ${photoLine}
                     style={styles.voiceReplaceButton}
                     onPress={() => startVoiceWithMode("replace")}
                   >
-                    <Text style={styles.voiceReplaceButtonText}>🔄 처음부터 말하기</Text>
+                    <Text style={styles.voiceReplaceButtonText}>↻ 처음부터 말하기</Text>
                     <Text style={styles.voiceSubText}>입력창을 비우고 시작</Text>
                   </TouchableOpacity>
                 </View>
@@ -993,7 +992,7 @@ ${photoLine}
 
         <ScrollView contentContainerStyle={styles.screenBody}>
           <View style={styles.summaryBox}>
-            <Text style={styles.summaryTitle}>오늘 꼭 기억할 내용</Text>
+            <Text style={styles.summaryTitle}>💡 오늘 꼭 기억할 내용</Text>
             <Text style={styles.summaryText}>{result.summary}</Text>
           </View>
 
@@ -1024,6 +1023,12 @@ ${photoLine}
         {renderTopBar("보호자에게 보내기", "result")}
 
         <ScrollView contentContainerStyle={styles.screenBody}>
+          <View style={styles.shareNoticeBox}>
+            <Text style={styles.shareNoticeText}>
+              아래 내용을 복사하거나 공유 버튼을 눌러 가족에게 전달해주세요.
+            </Text>
+          </View>
+
           {appNotice ? (
             <View style={styles.appNoticeBox}>
               <Text style={styles.appNoticeText}>{appNotice}</Text>
@@ -1103,30 +1108,22 @@ const styles = StyleSheet.create({
 
   homeHero: {
     alignItems: "center",
-    marginBottom: 22,
+    marginBottom: 24,
   },
 
   homeLogoImage: {
     width: 180,
     height: 180,
-    marginBottom: 2,
+    marginBottom: 4,
   },
 
-  appName: {
-    fontSize: 27,
+  homeMainText: {
+    fontSize: 21,
+    lineHeight: 34,
     fontWeight: "900",
     color: "#083A5A",
-    marginBottom: 10,
     textAlign: "center",
     letterSpacing: -0.4,
-  },
-
-  appSubtitle: {
-    fontSize: 18,
-    lineHeight: 29,
-    color: "#315B73",
-    textAlign: "center",
-    fontWeight: "700",
   },
 
   homeFeatureBox: {
@@ -1143,11 +1140,23 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 6 },
   },
 
+  homeFeatureHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 12,
+  },
+
+  homeFeatureIcon: {
+    fontSize: 22,
+    color: "#0B78A6",
+    marginRight: 8,
+    fontWeight: "900",
+  },
+
   homeFeatureTitle: {
     fontSize: 20,
     fontWeight: "900",
     color: "#083A5A",
-    marginBottom: 12,
   },
 
   homeFeatureText: {
@@ -1712,7 +1721,7 @@ const styles = StyleSheet.create({
     color: "#315B73",
   },
 
-  appNoticeBox: {
+  shareNoticeBox: {
     marginBottom: 18,
     backgroundColor: "#DFF1FA",
     borderRadius: 20,
@@ -1721,10 +1730,26 @@ const styles = StyleSheet.create({
     borderColor: "#8FC7DE",
   },
 
-  appNoticeText: {
+  shareNoticeText: {
     fontSize: 16,
     lineHeight: 26,
     color: "#083A5A",
+    fontWeight: "800",
+  },
+
+  appNoticeBox: {
+    marginBottom: 18,
+    backgroundColor: "#EAF7EF",
+    borderRadius: 20,
+    padding: 16,
+    borderWidth: 1.5,
+    borderColor: "#B7E2C5",
+  },
+
+  appNoticeText: {
+    fontSize: 16,
+    lineHeight: 26,
+    color: "#14532D",
     fontWeight: "800",
   },
 
