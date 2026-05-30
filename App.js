@@ -41,10 +41,20 @@ const STORAGE_KEYS = {
 };
 
 const defaultMealTimes = {
-  breakfast: "08:00",
-  lunch: "12:30",
-  dinner: "19:00",
+  breakfast: "",
+  lunch: "",
+  dinner: "",
 };
+
+const mealLabelMap = {
+  breakfast: "아침 식사",
+  lunch: "점심 식사",
+  dinner: "저녁 식사",
+};
+
+const meridiemOptions = ["오전", "오후"];
+const hourOptions = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
+const minuteOptions = [0, 10, 20, 30, 40, 50];
 
 const defaultResult = {
   summary:
@@ -186,12 +196,16 @@ export default function App() {
     );
   };
 
-  const saveMealTimes = async (nextMealTimes) => {
+  const saveMealTimes = async (nextMealTimes, options = { reschedule: true }) => {
     setMealTimes(nextMealTimes);
     await AsyncStorage.setItem(
       STORAGE_KEYS.mealTimes,
       JSON.stringify(nextMealTimes)
     );
+
+    if (options.reschedule && reminders.length > 0) {
+      await rescheduleSavedReminders(nextMealTimes);
+    }
   };
 
   const normalizeText = (text) => {
@@ -390,18 +404,28 @@ export default function App() {
   };
 
   const parseTime = (timeText) => {
-    const parts = String(timeText || "08:00").split(":");
+    if (!timeText) {
+      return null;
+    }
+
+    const parts = String(timeText).split(":");
     const hour = Number(parts[0]);
     const minute = Number(parts[1]);
 
-    return {
-      hour: Number.isFinite(hour) ? hour : 8,
-      minute: Number.isFinite(minute) ? minute : 0,
-    };
+    if (!Number.isFinite(hour) || !Number.isFinite(minute)) {
+      return null;
+    }
+
+    return { hour, minute };
   };
 
   const addMinutesToTime = (timeText, offsetMinutes) => {
     const parsed = parseTime(timeText);
+
+    if (!parsed) {
+      return "";
+    }
+
     const date = new Date();
 
     date.setHours(parsed.hour, parsed.minute, 0, 0);
@@ -411,6 +435,20 @@ export default function App() {
     const minuteText = String(date.getMinutes()).padStart(2, "0");
 
     return `${hourText}:${minuteText}`;
+  };
+
+  const formatTimeForDisplay = (timeText) => {
+    const parsed = parseTime(timeText);
+
+    if (!parsed) {
+      return "아직 설정하지 않음";
+    }
+
+    const meridiem = parsed.hour < 12 ? "오전" : "오후";
+    const displayHour = parsed.hour % 12 === 0 ? 12 : parsed.hour % 12;
+    const displayMinute = String(parsed.minute).padStart(2, "0");
+
+    return `${meridiem} ${displayHour}시 ${displayMinute}분`;
   };
 
   const extractSpeechTranscript = (event) => {
@@ -449,16 +487,38 @@ export default function App() {
     return "";
   };
 
+  const getRequiredMealKeys = (drafts) => {
+    const keys = new Set();
+
+    drafts.forEach((draft) => {
+      if (draft.meal === "breakfastDinner") {
+        keys.add("breakfast");
+        keys.add("dinner");
+      } else if (draft.meal) {
+        keys.add(draft.meal);
+      }
+    });
+
+    return Array.from(keys);
+  };
+
+  const getMissingMealKeys = (drafts, currentMealTimes) => {
+    return getRequiredMealKeys(drafts).filter((key) => !currentMealTimes[key]);
+  };
+
   const buildReminderPlans = (drafts, currentMealTimes) => {
     const plans = [];
 
     drafts.forEach((draft) => {
       const addPlan = (mealKey, suffix = "") => {
-        const baseTime = currentMealTimes[mealKey] || defaultMealTimes[mealKey];
+        const baseTime = currentMealTimes[mealKey];
         const timeText = addMinutesToTime(baseTime, draft.offsetMinutes);
 
         plans.push({
-          id: `${draft.id}-${mealKey}-${Date.now()}`,
+          id: `${draft.id}-${mealKey}`,
+          draftId: draft.id,
+          mealKey,
+          offsetMinutes: draft.offsetMinutes,
           label: `${draft.label}${suffix}`,
           timeText,
           medicines: draft.medicines,
@@ -819,6 +879,11 @@ ${result.hospital}
 
   const getSecondsUntilTime = (timeText) => {
     const parsed = parseTime(timeText);
+
+    if (!parsed) {
+      return null;
+    }
+
     const now = new Date();
     const target = new Date();
 
@@ -833,6 +898,11 @@ ${result.hospital}
 
   const scheduleMedicineNotification = async (plan) => {
     const secondsUntilReminder = getSecondsUntilTime(plan.timeText);
+
+    if (!secondsUntilReminder) {
+      throw new Error("식사 시간이 설정되지 않았습니다.");
+    }
+
     const medicineText = plan.medicines.join(", ");
 
     return Notifications.scheduleNotificationAsync({
@@ -887,8 +957,79 @@ ${result.hospital}
     }
   };
 
+  const rescheduleSavedReminders = async (nextMealTimes) => {
+    const updatedReminders = [];
+
+    for (const reminder of reminders) {
+      if (!reminder.mealKey || typeof reminder.offsetMinutes !== "number") {
+        updatedReminders.push(reminder);
+        continue;
+      }
+
+      if (reminder.notificationId) {
+        try {
+          await Notifications.cancelScheduledNotificationAsync(reminder.notificationId);
+        } catch (error) {
+          console.log("cancel notification before reschedule error", error);
+        }
+      }
+
+      const nextTimeText = addMinutesToTime(
+        nextMealTimes[reminder.mealKey],
+        reminder.offsetMinutes
+      );
+
+      if (!nextTimeText) {
+        updatedReminders.push({
+          ...reminder,
+          timeText: "",
+          notificationId: null,
+        });
+        continue;
+      }
+
+      const nextPlan = {
+        ...reminder,
+        timeText: nextTimeText,
+      };
+
+      try {
+        const notificationId = await scheduleMedicineNotification(nextPlan);
+        updatedReminders.push({
+          ...nextPlan,
+          notificationId,
+          updatedAt: new Date().toISOString(),
+        });
+      } catch (error) {
+        console.log("reschedule reminder error", error);
+        updatedReminders.push({
+          ...nextPlan,
+          notificationId: null,
+        });
+      }
+    }
+
+    setReminders(updatedReminders);
+    await AsyncStorage.setItem(
+      STORAGE_KEYS.reminders,
+      JSON.stringify(updatedReminders)
+    );
+  };
+
   const saveReminderPlans = async () => {
     try {
+      const missingMealKeys = getMissingMealKeys(reminderDrafts, mealTimes);
+
+      if (missingMealKeys.length > 0) {
+        Alert.alert(
+          "식사 시간이 필요합니다",
+          `${missingMealKeys
+            .map((key) => mealLabelMap[key])
+            .join(", ")} 시간을 먼저 선택해주세요. 선택 후 다시 알림 저장하기를 누르면 됩니다.`
+        );
+        return;
+      }
+
       const permissionGranted = await requestNotificationPermission();
 
       if (!permissionGranted) {
@@ -917,7 +1058,7 @@ ${result.hospital}
 
       Alert.alert(
         "약 알림 저장",
-        "약 복용 알림이 저장되었습니다. 정해진 시간에 휴대폰 알림으로 알려드립니다."
+        "약 복용 알림이 저장되었습니다. 설정한 식사 시간에 맞춰 휴대폰 알림으로 알려드립니다."
       );
 
       setActiveTab("reminders");
@@ -926,7 +1067,7 @@ ${result.hospital}
       console.log("save reminder notification error", error);
       Alert.alert(
         "알림 저장 오류",
-        "약 알림을 저장하지 못했습니다. 알림 권한을 확인한 뒤 다시 시도해주세요."
+        "약 알림을 저장하지 못했습니다. 알림 권한과 식사 시간을 확인한 뒤 다시 시도해주세요."
       );
     }
   };
@@ -1084,6 +1225,7 @@ ${result.hospital}
           <TouchableOpacity
             style={styles.startButton}
             onPress={() => {
+              clearInputState();
               setScreen("input");
               setActiveTab("home");
             }}
@@ -1165,7 +1307,7 @@ ${result.hospital}
                   disabled={isListening}
                 >
                   <Text style={[styles.voiceButtonText, isListening && styles.voiceButtonTextActive]}>
-                    🎙️ 이어 말하기
+                    {isListening ? "듣고 있어요" : "🎙️ 이어 말하기"}
                   </Text>
                 </TouchableOpacity>
 
@@ -1306,6 +1448,7 @@ ${result.hospital}
   };
 
   const renderReminderSetupScreen = () => {
+    const missingMealKeys = getMissingMealKeys(reminderDrafts, mealTimes);
     const plans = buildReminderPlans(reminderDrafts, mealTimes);
 
     return (
@@ -1314,9 +1457,9 @@ ${result.hospital}
 
         <ScrollView contentContainerStyle={styles.screenBody}>
           <View style={styles.sectionCard}>
-            <Text style={styles.sectionTitle}>AI가 알림 초안을 만들었습니다</Text>
+            <Text style={styles.sectionTitle}>AI가 약 알림을 준비했습니다</Text>
             <Text style={styles.sectionDescription}>
-              약 봉투와 입력한 진료 내용을 바탕으로 준비했습니다. 복용 시간은 약 봉투와 한 번 더 확인해주세요.
+              약 봉투와 입력한 진료 내용을 바탕으로 복용 시간을 정리했습니다. 복용법은 약 봉투와 한 번 더 확인해주세요.
             </Text>
 
             {reminderDrafts.map((draft) => (
@@ -1333,9 +1476,13 @@ ${result.hospital}
           </View>
 
           <View style={styles.sectionCard}>
-            <Text style={styles.sectionTitle}>식사 시간을 알려주세요</Text>
+            <Text style={styles.sectionTitle}>
+              {missingMealKeys.length > 0 ? "식사 시간을 먼저 선택해주세요" : "식사 시간이 설정되었습니다"}
+            </Text>
             <Text style={styles.sectionDescription}>
-              식전·식후 알림 시간을 자동으로 계산합니다.
+              {missingMealKeys.length > 0
+                ? "약 알림 시간을 계산하려면 평소 식사 시간이 필요합니다. 직접 입력하지 않고 아래 버튼에서 골라주세요."
+                : "아래 식사 시간을 기준으로 약 알림이 예약됩니다. 바꾸고 싶으면 여기에서 다시 선택할 수 있습니다."}
             </Text>
 
             <MealInput
@@ -1366,7 +1513,9 @@ ${result.hospital}
 
             {plans.map((plan) => (
               <View key={plan.id} style={styles.planRow}>
-                <Text style={styles.planTime}>{plan.timeText}</Text>
+                <Text style={styles.planTime}>
+                  {plan.timeText ? formatTimeForDisplay(plan.timeText) : "시간 설정 필요"}
+                </Text>
 
                 <View style={styles.planTextBox}>
                   <Text style={styles.planTitle}>{plan.label}</Text>
@@ -1438,41 +1587,8 @@ ${result.hospital}
         <ScrollView contentContainerStyle={styles.screenBody}>
           <View style={styles.noticeBox}>
             <Text style={styles.noticeText}>
-              저장된 약 복용 알림을 확인할 수 있습니다. 알림 권한이 켜져 있어야 휴대폰 알림이 도착합니다.
+              저장된 약 복용 알림을 확인할 수 있습니다. 식사 시간 변경은 설정 탭에서 할 수 있습니다.
             </Text>
-
-            <TouchableOpacity style={styles.testNotificationButton} onPress={scheduleTestNotification}>
-              <Text style={styles.testNotificationButtonText}>테스트 알림 보내기</Text>
-            </TouchableOpacity>
-          </View>
-
-          <View style={styles.sectionCard}>
-            <Text style={styles.sectionTitle}>기본 식사 시간</Text>
-            <Text style={styles.sectionDescription}>
-              식사 시간이 바뀌면 여기에서 수정할 수 있습니다.
-            </Text>
-
-            <MealInput
-              label="아침 식사"
-              value={mealTimes.breakfast}
-              onChangeText={(text) =>
-                saveMealTimes({ ...mealTimes, breakfast: text })
-              }
-            />
-
-            <MealInput
-              label="점심 식사"
-              value={mealTimes.lunch}
-              onChangeText={(text) => saveMealTimes({ ...mealTimes, lunch: text })}
-            />
-
-            <MealInput
-              label="저녁 식사"
-              value={mealTimes.dinner}
-              onChangeText={(text) =>
-                saveMealTimes({ ...mealTimes, dinner: text })
-              }
-            />
           </View>
 
           {reminders.length === 0 ? (
@@ -1484,7 +1600,9 @@ ${result.hospital}
           ) : (
             reminders.map((item) => (
               <View key={item.id} style={styles.reminderCard}>
-                <Text style={styles.reminderTime}>{item.timeText}</Text>
+                <Text style={styles.reminderTime}>
+                  {item.timeText ? formatTimeForDisplay(item.timeText) : "시간 설정 필요"}
+                </Text>
                 <Text style={styles.reminderTitle}>{item.label}</Text>
                 <Text style={styles.reminderBody}>{item.medicines.join(", ")}</Text>
 
@@ -1511,7 +1629,7 @@ ${result.hospital}
           <View style={styles.sectionCard}>
             <Text style={styles.sectionTitle}>기본 식사 시간</Text>
             <Text style={styles.sectionDescription}>
-              약 알림을 만들 때 사용하는 기준 시간입니다.
+              식사 시간이 바뀌면 저장된 약 알림도 새 시간에 맞춰 다시 예약됩니다.
             </Text>
 
             <MealInput
@@ -1631,20 +1749,131 @@ function InfoCard({ icon, title, text }) {
 }
 
 function MealInput({ label, value, onChangeText }) {
+  const parsed = parseTimeValue(value);
+  const selectedMeridiem = parsed ? (parsed.hour < 12 ? "오전" : "오후") : "";
+  const selectedHour = parsed ? (parsed.hour % 12 === 0 ? 12 : parsed.hour % 12) : null;
+  const selectedMinute = parsed ? parsed.minute : null;
+
+  const updateSelectedTime = (nextMeridiem, nextHour, nextMinute) => {
+    const meridiem = nextMeridiem || selectedMeridiem || "오전";
+    const hour = nextHour || selectedHour || 8;
+    const minute = typeof nextMinute === "number" ? nextMinute : selectedMinute ?? 0;
+
+    let finalHour = hour % 12;
+
+    if (meridiem === "오후") {
+      finalHour += 12;
+    }
+
+    onChangeText(`${String(finalHour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`);
+  };
+
   return (
     <View style={styles.mealInputRow}>
-      <Text style={styles.mealInputLabel}>{label}</Text>
+      <View style={styles.mealHeaderRow}>
+        <Text style={styles.mealInputLabel}>{label}</Text>
+        <Text style={styles.mealCurrentText}>
+          {value ? formatTimeValueForDisplay(value) : "아직 설정하지 않음"}
+        </Text>
+      </View>
 
-      <TextInput
-        style={styles.mealInput}
-        value={value}
-        onChangeText={onChangeText}
-        placeholder="08:00"
-        keyboardType="numbers-and-punctuation"
-        placeholderTextColor="#8AA8B8"
-      />
+      <View style={styles.timeOptionGroup}>
+        {meridiemOptions.map((option) => (
+          <TouchableOpacity
+            key={option}
+            style={[
+              styles.timeOptionButton,
+              selectedMeridiem === option && styles.timeOptionButtonActive,
+            ]}
+            onPress={() => updateSelectedTime(option, selectedHour || 8, selectedMinute ?? 0)}
+          >
+            <Text
+              style={[
+                styles.timeOptionText,
+                selectedMeridiem === option && styles.timeOptionTextActive,
+              ]}
+            >
+              {option}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+
+      <View style={styles.timeOptionGroupWrap}>
+        {hourOptions.map((hour) => (
+          <TouchableOpacity
+            key={hour}
+            style={[
+              styles.timeSmallOptionButton,
+              selectedHour === hour && styles.timeOptionButtonActive,
+            ]}
+            onPress={() => updateSelectedTime(selectedMeridiem || "오전", hour, selectedMinute ?? 0)}
+          >
+            <Text
+              style={[
+                styles.timeOptionText,
+                selectedHour === hour && styles.timeOptionTextActive,
+              ]}
+            >
+              {hour}시
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+
+      <View style={styles.timeOptionGroupWrap}>
+        {minuteOptions.map((minute) => (
+          <TouchableOpacity
+            key={minute}
+            style={[
+              styles.timeSmallOptionButton,
+              selectedMinute === minute && styles.timeOptionButtonActive,
+            ]}
+            onPress={() => updateSelectedTime(selectedMeridiem || "오전", selectedHour || 8, minute)}
+          >
+            <Text
+              style={[
+                styles.timeOptionText,
+                selectedMinute === minute && styles.timeOptionTextActive,
+              ]}
+            >
+              {String(minute).padStart(2, "0")}분
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </View>
     </View>
   );
+}
+
+function parseTimeValue(value) {
+  if (!value) {
+    return null;
+  }
+
+  const parts = String(value).split(":");
+  const hour = Number(parts[0]);
+  const minute = Number(parts[1]);
+
+  if (!Number.isFinite(hour) || !Number.isFinite(minute)) {
+    return null;
+  }
+
+  return { hour, minute };
+}
+
+function formatTimeValueForDisplay(value) {
+  const parsed = parseTimeValue(value);
+
+  if (!parsed) {
+    return "아직 설정하지 않음";
+  }
+
+  const meridiem = parsed.hour < 12 ? "오전" : "오후";
+  const displayHour = parsed.hour % 12 === 0 ? 12 : parsed.hour % 12;
+  const displayMinute = String(parsed.minute).padStart(2, "0");
+
+  return `${meridiem} ${displayHour}시 ${displayMinute}분`;
 }
 
 function EmptyState({ icon, title, text }) {
@@ -2170,13 +2399,69 @@ const styles = StyleSheet.create({
     color: "#17384A",
   },
   mealInputRow: {
-    marginBottom: 14,
+    marginBottom: 18,
+    backgroundColor: "#F8FBFD",
+    borderRadius: 20,
+    borderWidth: 1.4,
+    borderColor: "#D8E7F0",
+    padding: 14,
+  },
+  mealHeaderRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 10,
   },
   mealInputLabel: {
     fontSize: 17,
     fontWeight: "800",
     color: "#083A5A",
-    marginBottom: 8,
+  },
+  mealCurrentText: {
+    fontSize: 16,
+    fontWeight: "800",
+    color: "#0B78A6",
+  },
+  timeOptionGroup: {
+    flexDirection: "row",
+    marginBottom: 10,
+  },
+  timeOptionGroupWrap: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    marginBottom: 6,
+  },
+  timeOptionButton: {
+    flex: 1,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 16,
+    paddingVertical: 12,
+    alignItems: "center",
+    borderWidth: 1.4,
+    borderColor: "#BCD7E5",
+    marginHorizontal: 4,
+  },
+  timeSmallOptionButton: {
+    width: "23%",
+    backgroundColor: "#FFFFFF",
+    borderRadius: 14,
+    paddingVertical: 10,
+    alignItems: "center",
+    borderWidth: 1.3,
+    borderColor: "#BCD7E5",
+    margin: "1%",
+  },
+  timeOptionButtonActive: {
+    backgroundColor: "#0B78A6",
+    borderColor: "#0B78A6",
+  },
+  timeOptionText: {
+    fontSize: 15,
+    fontWeight: "800",
+    color: "#315B73",
+  },
+  timeOptionTextActive: {
+    color: "#FFFFFF",
   },
   mealInput: {
     backgroundColor: "#F8FBFD",
@@ -2200,7 +2485,7 @@ const styles = StyleSheet.create({
     borderColor: "#D8E7F0",
   },
   planTime: {
-    width: 68,
+    width: 118,
     fontSize: 20,
     fontWeight: "900",
     color: "#0B78A6",
@@ -2279,7 +2564,7 @@ const styles = StyleSheet.create({
     marginBottom: 14,
   },
   reminderTime: {
-    fontSize: 26,
+    fontSize: 24,
     fontWeight: "900",
     color: "#0B78A6",
     marginBottom: 8,
