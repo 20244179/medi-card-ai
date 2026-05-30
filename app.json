@@ -19,7 +19,9 @@
       "package": "com.medicardai.demo",
       "permissions": [
         "android.permission.CAMERA",
-        "android.permission.READ_MEDIA_IMAGES"
+        "android.permission.READ_MEDIA_IMAGES",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.POST_NOTIFICATIONS"
       ],
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
@@ -46,11 +48,19 @@
             "com.google.android.googlequicksearchbox"
           ]
         }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/icon.png",
+          "color": "#0B78A6",
+          "sounds": []
+        }
       ]
     ],
     "extra": {
       "eas": {
-        "projectId": "457e3927-7204-4af8-9e69-0ee7e8fafc9"
+        "projectId": "457e3927-7204-4af8-9e69-0ee7e8faafc9"
       }
     }
   }

@@ -20,8 +20,19 @@ import {
   useSpeechRecognitionEvent,
 } from "expo-speech-recognition";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import * as Notifications from "expo-notifications";
 
 const LOGO = require("./assets/mydoctor-logo.png");
+
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowAlert: true,
+    shouldPlaySound: true,
+    shouldSetBadge: false,
+    shouldShowBanner: true,
+    shouldShowList: true,
+  }),
+});
 
 const STORAGE_KEYS = {
   records: "MYDOCTOR_RECORDS",
@@ -120,6 +131,7 @@ export default function App() {
 
   useEffect(() => {
     loadStoredData();
+    initializeNotifications();
   }, []);
 
   const loadStoredData = async () => {
@@ -1215,7 +1227,7 @@ ${result.hospital}
           </View>
 
           <View style={styles.sectionCard}>
-            <Text style={styles.sectionTitle}>저장될 알림 초안</Text>
+            <Text style={styles.sectionTitle}>저장될 알림</Text>
 
             {plans.map((plan) => (
               <View key={plan.id} style={styles.planRow}>
@@ -1230,7 +1242,7 @@ ${result.hospital}
           </View>
 
           <TouchableOpacity style={styles.mainButton} onPress={saveReminderPlans}>
-            <Text style={styles.mainButtonText}>알림 초안 저장하기</Text>
+            <Text style={styles.mainButtonText}>알림 저장하기</Text>
           </TouchableOpacity>
         </ScrollView>
       </View>
@@ -1291,8 +1303,12 @@ ${result.hospital}
         <ScrollView contentContainerStyle={styles.screenBody}>
           <View style={styles.noticeBox}>
             <Text style={styles.noticeText}>
-              현재 버전에서는 알림 초안을 저장합니다. 실제 푸시 알림은 다음 단계에서 연결합니다.
+              저장된 약 복용 알림을 확인할 수 있습니다. 알림 권한이 켜져 있어야 휴대폰 알림이 도착합니다.
             </Text>
+
+            <TouchableOpacity style={styles.testNotificationButton} onPress={scheduleTestNotification}>
+              <Text style={styles.testNotificationButtonText}>테스트 알림 보내기</Text>
+            </TouchableOpacity>
           </View>
 
           <View style={styles.sectionCard}>
@@ -1327,8 +1343,8 @@ ${result.hospital}
           {reminders.length === 0 ? (
             <EmptyState
               icon="💊"
-              title="저장된 알림 초안이 없습니다"
-              text="쉬운 설명 카드에서 약 알림 설정을 눌러 알림 초안을 만들 수 있습니다."
+              title="저장된 알림이 없습니다"
+              text="쉬운 설명 카드에서 약 알림 설정을 눌러 알림을 만들 수 있습니다."
             />
           ) : (
             reminders.map((item) => (
@@ -1360,7 +1376,7 @@ ${result.hospital}
           <View style={styles.sectionCard}>
             <Text style={styles.sectionTitle}>기본 식사 시간</Text>
             <Text style={styles.sectionDescription}>
-              약 알림 초안을 만들 때 사용하는 기준 시간입니다.
+              약 알림을 만들 때 사용하는 기준 시간입니다.
             </Text>
 
             <MealInput
@@ -2213,6 +2229,20 @@ const styles = StyleSheet.create({
     fontSize: 16,
     lineHeight: 30,
     color: "#17384A",
+  },
+  testNotificationButton: {
+    marginTop: 12,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 16,
+    paddingVertical: 13,
+    alignItems: "center",
+    borderWidth: 1.5,
+    borderColor: "#8FC7DE",
+  },
+  testNotificationButtonText: {
+    fontSize: 16,
+    fontWeight: "800",
+    color: "#0B5D83",
   },
   bottomTabs: {
     height: 82,
