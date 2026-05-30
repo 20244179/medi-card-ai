@@ -16,8 +16,19 @@ import {
 import * as ImagePicker from "expo-image-picker";
 import { extractTextFromImage, isSupported } from "expo-text-extractor";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useFonts } from "expo-font";
 
 const LOGO = require("./assets/mydoctor-logo.png");
+
+const FONT = {
+  koRegular: "NanumSquareRoundR",
+  koBold: "NanumSquareRoundB",
+  koExtraBold: "NanumSquareRoundEB",
+  enRegular: "MontserratRegular",
+  enSemiBold: "MontserratSemiBold",
+  enBold: "MontserratBold",
+  enExtraBold: "MontserratExtraBold",
+};
 
 const STORAGE_KEYS = {
   records: "MYDOCTOR_RECORDS",
@@ -45,6 +56,24 @@ const defaultResult = {
 };
 
 export default function App() {
+  const [fontsLoaded] = useFonts({
+    NanumSquareRoundR: require("./assets/fonts/NanumSquareRoundR.ttf"),
+    NanumSquareRoundB: require("./assets/fonts/NanumSquareRoundB.ttf"),
+    NanumSquareRoundEB: require("./assets/fonts/NanumSquareRoundEB.ttf"),
+    MontserratRegular: require("./assets/fonts/Montserrat-Regular.ttf"),
+    MontserratSemiBold: require("./assets/fonts/Montserrat-SemiBold.ttf"),
+    MontserratBold: require("./assets/fonts/Montserrat-Bold.ttf"),
+    MontserratExtraBold: require("./assets/fonts/Montserrat-ExtraBold.ttf"),
+  });
+
+  if (!fontsLoaded) {
+    return (
+      <SafeAreaView style={styles.safeArea}>
+        <View style={styles.appRoot} />
+      </SafeAreaView>
+    );
+  }
+
   const [activeTab, setActiveTab] = useState("home");
   const [screen, setScreen] = useState("home");
 
@@ -1373,6 +1402,7 @@ const styles = StyleSheet.create({
     fontSize: 22,
     lineHeight: 36,
     fontWeight: "800",
+    fontFamily: FONT.koExtraBold,
     color: "#083A5A",
     textAlign: "center",
     marginBottom: 24,
