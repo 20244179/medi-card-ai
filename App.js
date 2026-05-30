@@ -26,7 +26,7 @@ import { useFonts } from "expo-font";
 const LOGO = require("./assets/mydoctor-logo.png");
 
 const FONT = {
-  koRegular: "NanumSquareRoundR",
+  koRegular: "NanumSquareRoundB",
   koBold: "NanumSquareRoundB",
   koExtraBold: "NanumSquareRoundEB",
   enRegular: "MontserratRegular",
@@ -2259,7 +2259,7 @@ const styles = StyleSheet.create({
     color: "#083A5A",
   },
   topBarSubtitle: {
-    fontFamily: FONT.koRegular,
+    fontFamily: FONT.enSemiBold,
     fontSize: 14,
     fontWeight: "700",
     color: "#4A7087",
@@ -2778,7 +2778,7 @@ const styles = StyleSheet.create({
     borderColor: "#D8E7F0",
   },
   planTime: {
-    fontFamily: FONT.koExtraBold,
+    fontFamily: FONT.enBold,
     width: 118,
     fontSize: 20,
     fontWeight: "900",
@@ -2809,7 +2809,7 @@ const styles = StyleSheet.create({
     marginBottom: 14,
   },
   recordDate: {
-    fontFamily: FONT.koExtraBold,
+    fontFamily: FONT.enBold,
     fontSize: 15,
     fontWeight: "800",
     color: "#0B78A6",
@@ -2864,7 +2864,7 @@ const styles = StyleSheet.create({
     marginBottom: 14,
   },
   reminderTime: {
-    fontFamily: FONT.koExtraBold,
+    fontFamily: FONT.enExtraBold,
     fontSize: 24,
     fontWeight: "900",
     color: "#0B78A6",
