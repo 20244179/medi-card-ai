@@ -10,6 +10,7 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
+  useWindowDimensions,
   View,
 } from "react-native";
 
@@ -414,6 +415,10 @@ function makeRecordTitle(result) {
 }
 
 export default function App() {
+  const { width } = useWindowDimensions();
+  const isDesktopLayout = Platform.OS === "web" && width >= 1000;
+  const [desktopSection, setDesktopSection] = useState("dashboard");
+
   const [activeTab, setActiveTab] = useState("home");
   const [screen, setScreen] = useState("home");
 
@@ -1382,6 +1387,9 @@ ${result.hospital}
           <TouchableOpacity style={styles.mainButton} onPress={saveReminderPlans}>
             <Text style={styles.mainButtonText}>알림 저장하기</Text>
           </TouchableOpacity>
+          <TouchableOpacity style={styles.saveButton} onPress={() => setScreen("result")}>
+            <Text style={styles.saveButtonText}>설정하지 않고 설명 카드로 돌아가기</Text>
+          </TouchableOpacity>
         </ScrollView>
       </View>
     );
@@ -1483,8 +1491,492 @@ ${result.hospital}
           <TouchableOpacity style={styles.familyButtonLarge} onPress={handleNotifyFamily}>
             <Text style={styles.familyButtonText}>공유하기 / 다시 보내기</Text>
           </TouchableOpacity>
+          <TouchableOpacity style={styles.saveButton} onPress={() => setScreen("result")}>
+            <Text style={styles.saveButtonText}>설명 카드로 돌아가기</Text>
+          </TouchableOpacity>
         </ScrollView>
       </View>
+    );
+  };
+
+
+  const desktopMenuItems = [
+    { key: "dashboard", label: "홈", icon: "🏠", description: "마이닥터 시작" },
+    { key: "workspace", label: "새 진료 정리", icon: "🩺", description: "입력·분석" },
+    { key: "records", label: "진료 기록", icon: "📋", description: `${records.length}개 저장됨` },
+    { key: "reminders", label: "약 알림", icon: "💊", description: `${reminders.length}개 저장됨` },
+    { key: "settings", label: "설정", icon: "⚙️", description: "식사 시간 관리" },
+  ];
+
+  const openDesktopSection = (key) => {
+    setDesktopSection(key);
+    if (key === "dashboard") {
+      setScreen("home");
+      setActiveTab("home");
+    }
+    if (key === "workspace") {
+      if (screen !== "result" && screen !== "reminderSetup" && screen !== "share") {
+        setScreen("input");
+      }
+      setActiveTab("home");
+    }
+    if (key === "records") {
+      setActiveTab("records");
+      setScreen("records");
+    }
+    if (key === "reminders") {
+      setActiveTab("reminders");
+      setScreen("reminders");
+    }
+    if (key === "settings") {
+      setActiveTab("settings");
+      setScreen("settings");
+    }
+  };
+
+  const handleDesktopNewVisit = () => {
+    handleNewVisit();
+    setDesktopSection("workspace");
+  };
+
+  const handleDesktopOpenRecord = (record) => {
+    openRecord(record);
+    setDesktopSection("workspace");
+  };
+
+  const handleDesktopReminderSetup = () => {
+    openReminderSetup();
+    setDesktopSection("workspace");
+  };
+
+  const renderDesktopSidebar = () => {
+    return (
+      <View style={styles.desktopSidebar}>
+        <View style={styles.desktopBrandBox}>
+          <Image source={LOGO} style={styles.desktopLogo} resizeMode="contain" />
+          <Text style={styles.desktopBrandText}>MyDoctor</Text>
+          <Text style={styles.desktopBrandSub}>AI 진료 설명·복약 관리</Text>
+        </View>
+
+        <View style={styles.desktopMenuList}>
+          {desktopMenuItems.map((item) => {
+            const focused = desktopSection === item.key;
+            return (
+              <TouchableOpacity
+                key={item.key}
+                style={[styles.desktopMenuButton, focused && styles.desktopMenuButtonActive]}
+                onPress={() => openDesktopSection(item.key)}
+              >
+                <Text style={styles.desktopMenuIcon}>{item.icon}</Text>
+                <View style={styles.desktopMenuTextBox}>
+                  <Text style={[styles.desktopMenuLabel, focused && styles.desktopMenuLabelActive]}>{item.label}</Text>
+                  <Text style={[styles.desktopMenuDescription, focused && styles.desktopMenuDescriptionActive]}>{item.description}</Text>
+                </View>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+
+        <View style={styles.desktopSideNotice}>
+          <Text style={styles.desktopSideNoticeTitle}>웹에서 바로 사용하는 마이닥터</Text>
+          <Text style={styles.desktopSideNoticeText}>PC에서는 넓은 화면으로 진료 정리, 기록, 약 알림을 한 번에 관리할 수 있습니다.</Text>
+        </View>
+      </View>
+    );
+  };
+
+  const renderDesktopHero = () => {
+    return (
+      <View style={styles.desktopHeroGrid}>
+        <View style={styles.desktopHeroCard}>
+          <Text style={styles.desktopEyebrow}>MYDOCTOR WEB</Text>
+          <Text style={styles.desktopHeroTitle}>진료실에서 들은 어려운 말을{"\n"}웹에서도 쉽게 정리해드려요</Text>
+          <Text style={styles.desktopHeroText}>
+            마이닥터 PC 웹은 진료 내용, 약 봉투 사진, 음성 입력을 한 화면에서 정리하고 기록과 복용 시간을 함께 관리하는 데스크톱 웹 서비스입니다.
+          </Text>
+          <View style={styles.desktopHeroButtonRow}>
+            <TouchableOpacity style={styles.desktopPrimaryButton} onPress={handleDesktopNewVisit}>
+              <Text style={styles.desktopPrimaryButtonText}>새 진료 정리하기</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.desktopSecondaryButton} onPress={() => openDesktopSection("records")}>
+              <Text style={styles.desktopSecondaryButtonText}>기록 확인하기</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        <View style={styles.desktopStatusCard}>
+          <Text style={styles.desktopPanelTitle}>오늘의 마이닥터</Text>
+          <View style={styles.desktopStatRow}>
+            <View style={styles.desktopStatBox}>
+              <Text style={styles.desktopStatNumber}>{records.length}</Text>
+              <Text style={styles.desktopStatLabel}>진료 기록</Text>
+            </View>
+            <View style={styles.desktopStatBox}>
+              <Text style={styles.desktopStatNumber}>{reminders.length}</Text>
+              <Text style={styles.desktopStatLabel}>약 알림</Text>
+            </View>
+          </View>
+          <View style={styles.desktopMiniFeatureList}>
+            <Text style={styles.desktopMiniFeature}>✓ 어려운 진료 내용을 쉽게 보기</Text>
+            <Text style={styles.desktopMiniFeature}>✓ 가족에게 요약문 보내기</Text>
+            <Text style={styles.desktopMiniFeature}>✓ 약 알림 시간 설정하기</Text>
+            <Text style={styles.desktopMiniFeature}>✓ 진료 기록 다시 확인하기</Text>
+          </View>
+        </View>
+      </View>
+    );
+  };
+
+  const renderDesktopDashboard = () => {
+    const latestRecord = records[0];
+    const upcomingReminder = reminders[0];
+    return (
+      <ScrollView contentContainerStyle={styles.desktopContentScroll}>
+        {renderDesktopHero()}
+
+        <View style={styles.desktopThreeColumn}>
+          <TouchableOpacity style={styles.desktopActionCard} onPress={handleDesktopNewVisit}>
+            <Text style={styles.desktopActionIcon}>🩺</Text>
+            <Text style={styles.desktopActionTitle}>새 진료 정리</Text>
+            <Text style={styles.desktopActionText}>진료 내용, 약 봉투 사진, 음성 입력을 한 번에 정리합니다.</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.desktopActionCard} onPress={() => openDesktopSection("records")}>
+            <Text style={styles.desktopActionIcon}>📋</Text>
+            <Text style={styles.desktopActionTitle}>진료 기록</Text>
+            <Text style={styles.desktopActionText}>{latestRecord ? makeRecordTitle(latestRecord.result) : "저장된 진료 기록을 다시 확인합니다."}</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.desktopActionCard} onPress={() => openDesktopSection("reminders")}>
+            <Text style={styles.desktopActionIcon}>💊</Text>
+            <Text style={styles.desktopActionTitle}>약 알림 관리</Text>
+            <Text style={styles.desktopActionText}>{upcomingReminder ? `${formatKoreanTime(upcomingReminder.timeText)} · ${upcomingReminder.label}` : "식사 시간에 맞춘 복용 시간을 관리합니다."}</Text>
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.desktopInfoGrid}>
+          <View style={styles.desktopInfoPanel}>
+            <Text style={styles.desktopPanelTitle}>마이닥터 사용 흐름</Text>
+            <Text style={styles.desktopStepText}>1. 진료 내용을 입력하거나 약 봉투 사진을 올립니다.</Text>
+            <Text style={styles.desktopStepText}>2. AI가 환자 눈높이에 맞춰 쉬운 설명 카드로 정리합니다.</Text>
+            <Text style={styles.desktopStepText}>3. 보호자에게 요약문을 보내고, 기록과 복용 시간을 저장합니다.</Text>
+          </View>
+          <View style={styles.desktopInfoPanel}>
+            <Text style={styles.desktopPanelTitle}>PC 웹에서 가능한 기능</Text>
+            <Text style={styles.desktopStepText}>• 약 봉투 사진 OCR 분석</Text>
+            <Text style={styles.desktopStepText}>• 웹 음성 입력</Text>
+            <Text style={styles.desktopStepText}>• 진료 기록 저장과 다시 보기</Text>
+            <Text style={styles.desktopStepText}>• 약 알림 시간 계산과 관리</Text>
+          </View>
+        </View>
+      </ScrollView>
+    );
+  };
+
+  const renderDesktopInputPanel = () => {
+    return (
+      <View style={styles.desktopPanelCard}>
+        <Text style={styles.desktopPanelTitle}>진료 내용 입력</Text>
+        <Text style={styles.desktopPanelDescription}>병원에서 들은 말이나 약 이름을 짧게 적어도 됩니다.</Text>
+        <TextInput
+          style={styles.desktopTextArea}
+          multiline
+          textAlignVertical="top"
+          value={userInput}
+          onChangeText={setUserInput}
+          placeholder="예: 당뇨 때문에 병원에 갔고 약을 받았어요. 식후에 먹으라고 하셨어요."
+          placeholderTextColor="#6B7C8D"
+        />
+        <View style={styles.desktopButtonRow}>
+          <TouchableOpacity style={[styles.desktopSmallButton, isListening && styles.listeningButton]} onPress={() => handleVoiceInput("first")}>
+            <Text style={styles.desktopSmallButtonText}>{isListening ? "🔴 듣고 있어요" : "🎤 처음 말하기"}</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={[styles.desktopSmallButton, isListening && styles.listeningButton]} onPress={() => handleVoiceInput("continue")}>
+            <Text style={styles.desktopSmallButtonText}>➕ 이어 말하기</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.desktopClearButton} onPress={clearInputState}>
+            <Text style={styles.desktopClearButtonText}>입력 지우기</Text>
+          </TouchableOpacity>
+        </View>
+        {voiceMessage ? <Text style={styles.voiceMessage}>{voiceMessage}</Text> : null}
+
+        <View style={styles.desktopDivider} />
+
+        <Text style={styles.desktopPanelTitle}>약 봉투 사진</Text>
+        <Text style={styles.desktopPanelDescription}>PC에서는 사진을 업로드하고, 모바일 웹에서는 카메라 촬영도 사용할 수 있습니다.</Text>
+        <View style={styles.desktopButtonRow}>
+          <TouchableOpacity style={styles.desktopSmallButton} onPress={() => openMedicinePhotoInput("gallery")}>
+            <Text style={styles.desktopSmallButtonText}>🖼️ 사진 선택</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.desktopSmallButton} onPress={() => openMedicinePhotoInput("camera")}>
+            <Text style={styles.desktopSmallButtonText}>📷 촬영하기</Text>
+          </TouchableOpacity>
+        </View>
+
+        {medicinePhotoUri ? (
+          <View style={styles.desktopPhotoRow}>
+            <Image source={{ uri: medicinePhotoUri }} style={styles.desktopMedicineImage} resizeMode="contain" />
+            <View style={styles.desktopPhotoTextBox}>
+              <View style={styles.photoPreviewHeader}>
+                <Text style={styles.photoPreviewTitle}>첨부된 약 봉투 사진</Text>
+                <TouchableOpacity onPress={handleRemoveMedicinePhoto}>
+                  <Text style={styles.photoRemoveText}>삭제</Text>
+                </TouchableOpacity>
+              </View>
+              {isPhotoAnalyzing || ocrProgress ? (
+                <Text style={styles.photoAnalysisText}>{ocrProgress || "약 봉투 사진을 확인하고 있습니다..."}</Text>
+              ) : medicinePhotoAnalysis ? (
+                <Text style={styles.photoAnalysisText}>{medicinePhotoAnalysis}</Text>
+              ) : null}
+            </View>
+          </View>
+        ) : (
+          <View style={styles.desktopEmptyPhotoBox}>
+            <Text style={styles.emptyPhotoIcon}>📄</Text>
+            <Text style={styles.emptyPhotoText}>약 봉투 사진을 넣으면 진료 설명에 함께 반영됩니다.</Text>
+          </View>
+        )}
+
+        <TouchableOpacity style={[styles.mainButton, isLoading && styles.loadingButton]} onPress={handleTranslate}>
+          <Text style={styles.mainButtonText}>{isLoading ? "진료 내용을 정리하고 있습니다" : "AI로 쉽게 정리하기"}</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  };
+
+  const renderDesktopResultPanel = () => {
+    return (
+      <View style={styles.desktopPanelCard}>
+        <Text style={styles.desktopPanelTitle}>AI 쉬운 설명 카드</Text>
+        <View style={styles.summaryBox}>
+          <Text style={styles.summaryTitle}>💡 오늘 꼭 기억할 내용</Text>
+          <Text style={styles.summaryText}>{result.summary}</Text>
+        </View>
+        <InfoCard icon="📋" title="무슨 병인가요?" text={result.disease} />
+        <InfoCard icon="💊" title="약은 어떻게 먹나요?" text={result.medicine} />
+        <InfoCard icon="⚠️" title="무엇을 조심하나요?" text={result.caution} />
+        <InfoCard icon="🏥" title="언제 병원에 다시 가나요?" text={result.hospital} />
+        <View style={styles.desktopButtonRow}>
+          <TouchableOpacity style={styles.familyButton} onPress={handleNotifyFamily}>
+            <Text style={styles.familyButtonText}>가족에게 알리기</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.alarmButton} onPress={handleDesktopReminderSetup}>
+            <Text style={styles.alarmButtonText}>약 알림 설정</Text>
+          </TouchableOpacity>
+        </View>
+        <TouchableOpacity style={styles.saveButton} onPress={saveCurrentRecord}>
+          <Text style={styles.saveButtonText}>진료 기록 저장하기</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  };
+
+  const renderDesktopReminderSetup = () => {
+    const plans = buildReminderPlans(reminderDrafts, mealTimes);
+    return (
+      <ScrollView contentContainerStyle={styles.desktopContentScroll}>
+        <View style={styles.desktopWorkspaceGrid}>
+          <View style={styles.desktopPanelCard}>
+            <Text style={styles.desktopPanelTitle}>약 알림 설정</Text>
+            <Text style={styles.desktopPanelDescription}>복용 시간은 약 봉투와 한 번 더 확인해주세요.</Text>
+            {reminderDrafts.map((draft) => (
+              <View key={draft.id} style={styles.draftCard}>
+                <Text style={styles.draftTypeLabel}>{medicineTypeLabels[draft.medicineType || "unknown"]}</Text>
+                <Text style={styles.draftTitle}>{draft.label}</Text>
+                {draft.medicines.map((med) => (
+                  <Text key={med} style={styles.draftMedicine}>- {med}</Text>
+                ))}
+              </View>
+            ))}
+          </View>
+          <View style={styles.desktopPanelCard}>
+            <Text style={styles.desktopPanelTitle}>식사 시간과 저장될 알림</Text>
+            {['breakfast', 'lunch', 'dinner'].map((mealKey) => (
+              <View key={mealKey}>{renderMealEditor(mealKey)}</View>
+            ))}
+            {plans.length ? (
+              <View style={styles.desktopPlanBox}>
+                {plans.map((plan) => (
+                  <View key={plan.id} style={styles.planRow}>
+                    <Text style={styles.planTime}>{formatKoreanTime(plan.timeText)}</Text>
+                    <View style={styles.planTextBox}>
+                      <Text style={styles.planTitle}>{plan.label}</Text>
+                      <Text style={styles.planBody}>{medicineTypeLabels[plan.medicineType || "unknown"]} · {plan.medicines.join(", ")}</Text>
+                    </View>
+                  </View>
+                ))}
+              </View>
+            ) : (
+              <View style={styles.noticeBox}>
+                <Text style={styles.noticeText}>식사 시간을 설정하면 저장될 알림 시간이 여기에 표시됩니다.</Text>
+              </View>
+            )}
+            <TouchableOpacity style={styles.mainButton} onPress={saveReminderPlans}>
+              <Text style={styles.mainButtonText}>알림 저장하기</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.desktopSecondaryButton} onPress={() => setScreen("result")}>
+              <Text style={styles.desktopSecondaryButtonText}>설정하지 않고 설명 카드로 돌아가기</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </ScrollView>
+    );
+  };
+
+  const renderDesktopWorkspace = () => {
+    if (screen === "reminderSetup") return renderDesktopReminderSetup();
+    if (screen === "share") return renderDesktopShare();
+
+    return (
+      <ScrollView contentContainerStyle={styles.desktopContentScroll}>
+        <View style={styles.desktopWorkspaceHeader}>
+          <View>
+            <Text style={styles.desktopPageTitle}>새 진료 정리</Text>
+            <Text style={styles.desktopPageSubtitle}>진료 내용 입력부터 설명 카드, 약 알림 설정까지 한 화면에서 진행합니다.</Text>
+          </View>
+          <TouchableOpacity style={styles.desktopSecondaryButton} onPress={handleDesktopNewVisit}>
+            <Text style={styles.desktopSecondaryButtonText}>새로 시작</Text>
+          </TouchableOpacity>
+        </View>
+        <View style={styles.desktopWorkspaceGrid}>
+          {renderDesktopInputPanel()}
+          {renderDesktopResultPanel()}
+        </View>
+      </ScrollView>
+    );
+  };
+
+  const renderDesktopRecords = () => {
+    return (
+      <ScrollView contentContainerStyle={styles.desktopContentScroll}>
+        <Text style={styles.desktopPageTitle}>진료 기록</Text>
+        <Text style={styles.desktopPageSubtitle}>저장된 진료 내용을 선택하면 입력 내용과 설명 카드를 다시 볼 수 있습니다.</Text>
+        {records.length === 0 ? (
+          <EmptyState icon="📋" title="저장된 기록이 없습니다" text="진료 내용을 정리한 뒤 기록 저장하기를 눌러주세요." />
+        ) : (
+          <View style={styles.desktopRecordGrid}>
+            {records.map((record) => (
+              <View key={record.id} style={styles.recordCard}>
+                <Text style={styles.recordDate}>{formatDate(record.createdAt)}</Text>
+                <Text style={styles.recordTitle}>{makeRecordTitle(record.result)}</Text>
+                <Text style={styles.recordPreviewText}>{record.input || "입력 내용이 없습니다."}</Text>
+                <View style={styles.recordButtonRow}>
+                  <TouchableOpacity style={styles.recordOpenButton} onPress={() => handleDesktopOpenRecord(record)}>
+                    <Text style={styles.recordOpenText}>다시 보기</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={styles.recordDeleteButton} onPress={() => deleteRecord(record.id)}>
+                    <Text style={styles.recordDeleteText}>삭제</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            ))}
+          </View>
+        )}
+      </ScrollView>
+    );
+  };
+
+  const renderDesktopReminders = () => {
+    return (
+      <ScrollView contentContainerStyle={styles.desktopContentScroll}>
+        <View style={styles.desktopWorkspaceHeader}>
+          <View>
+            <Text style={styles.desktopPageTitle}>약 알림 관리</Text>
+            <Text style={styles.desktopPageSubtitle}>웹에서는 복용 시간을 저장하고 확인할 수 있습니다. 실제 푸시 알림은 모바일 앱에서 사용할 수 있습니다.</Text>
+          </View>
+          <TouchableOpacity style={styles.desktopPrimaryButton} onPress={() => setDesktopSection("workspace")}>
+            <Text style={styles.desktopPrimaryButtonText}>진료 정리로 이동</Text>
+          </TouchableOpacity>
+        </View>
+        {reminders.length === 0 ? (
+          <EmptyState icon="💊" title="저장된 약 알림이 없습니다" text="쉬운 설명 카드에서 약 알림 설정을 눌러 알림을 만들 수 있습니다." />
+        ) : (
+          <View style={styles.desktopReminderGrid}>
+            {reminders.map((item) => (
+              <View key={item.id} style={styles.reminderCard}>
+                <Text style={styles.reminderTime}>{formatKoreanTime(item.timeText)}</Text>
+                <Text style={styles.reminderTitle}>{item.label}</Text>
+                <Text style={styles.reminderBody}>{medicineTypeLabels[item.medicineType || "unknown"]} · {item.medicines.join(", ")}</Text>
+                <TouchableOpacity style={styles.recordDeleteButton} onPress={() => deleteReminder(item.id)}>
+                  <Text style={styles.recordDeleteText}>알림 삭제</Text>
+                </TouchableOpacity>
+              </View>
+            ))}
+          </View>
+        )}
+      </ScrollView>
+    );
+  };
+
+  const renderDesktopSettings = () => {
+    return (
+      <ScrollView contentContainerStyle={styles.desktopContentScroll}>
+        <Text style={styles.desktopPageTitle}>설정</Text>
+        <Text style={styles.desktopPageSubtitle}>식사 시간이 바뀌면 여기에서 수정할 수 있습니다.</Text>
+        <View style={styles.desktopWorkspaceGrid}>
+          <View style={styles.desktopPanelCard}>
+            <Text style={styles.desktopPanelTitle}>기본 식사 시간</Text>
+            {['breakfast', 'lunch', 'dinner'].map((mealKey) => (
+              <View key={mealKey}>{renderMealEditor(mealKey)}</View>
+            ))}
+          </View>
+          <View style={styles.desktopPanelCard}>
+            <Text style={styles.desktopPanelTitle}>마이닥터 웹</Text>
+            <Text style={styles.desktopPanelDescription}>
+              마이닥터 PC 웹은 진료 내용을 쉽게 정리하고, 기록과 복용 시간을 확인할 수 있도록 돕는 웹 서비스입니다. 실제 휴대폰 푸시 알림은 모바일 앱에서 사용할 수 있습니다.
+            </Text>
+          </View>
+        </View>
+      </ScrollView>
+    );
+  };
+
+  const renderDesktopShare = () => {
+    const message = familyMessage || buildFamilyMessage();
+    return (
+      <ScrollView contentContainerStyle={styles.desktopContentScroll}>
+        <View style={styles.desktopPanelCard}>
+          <Text style={styles.desktopPanelTitle}>보호자에게 보내기</Text>
+          <View style={styles.familyMessageBox}>
+            <Text style={styles.familyMessageTitle}>보호자용 요약문</Text>
+            <Text style={styles.familyMessageText}>{message}</Text>
+          </View>
+          <TouchableOpacity style={styles.familyButtonLarge} onPress={handleNotifyFamily}>
+            <Text style={styles.familyButtonText}>공유하기 / 다시 보내기</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.desktopSecondaryButton} onPress={() => setScreen("result")}>
+            <Text style={styles.desktopSecondaryButtonText}>설명 카드로 돌아가기</Text>
+          </TouchableOpacity>
+        </View>
+      </ScrollView>
+    );
+  };
+
+  const renderDesktopMain = () => {
+    if (desktopSection === "workspace") return renderDesktopWorkspace();
+    if (desktopSection === "records") return renderDesktopRecords();
+    if (desktopSection === "reminders") return renderDesktopReminders();
+    if (desktopSection === "settings") return renderDesktopSettings();
+    return renderDesktopDashboard();
+  };
+
+  const renderDesktopApp = () => {
+    return (
+      <SafeAreaView style={styles.desktopSafeArea}>
+        <View style={styles.desktopShell}>
+          {renderDesktopSidebar()}
+          <View style={styles.desktopMainArea}>
+            <View style={styles.desktopTopHeader}>
+              <View>
+                <Text style={styles.desktopHeaderTitle}>마이닥터</Text>
+                <Text style={styles.desktopHeaderSub}>진료 설명부터 복용 관리까지 한 화면에서</Text>
+              </View>
+              <TouchableOpacity style={styles.desktopHeaderButton} onPress={handleDesktopNewVisit}>
+                <Text style={styles.desktopHeaderButtonText}>+ 새 진료</Text>
+              </TouchableOpacity>
+            </View>
+            {renderDesktopMain()}
+          </View>
+        </View>
+      </SafeAreaView>
     );
   };
 
@@ -1498,6 +1990,10 @@ ${result.hospital}
     if (activeTab === "settings") return renderSettingsScreen();
     return renderHomeScreen();
   };
+
+  if (isDesktopLayout) {
+    return renderDesktopApp();
+  }
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -1545,6 +2041,20 @@ const titleText = {
 };
 
 const numberText = {
+  fontFamily: FONT.enBold,
+  includeFontPadding: false,
+  wordBreak: "keep-all",
+  overflowWrap: "break-word",
+};
+
+const buttonText = {
+  fontFamily: FONT.koExtraBold,
+  includeFontPadding: false,
+  wordBreak: "keep-all",
+  overflowWrap: "break-word",
+};
+
+const englishText = {
   fontFamily: FONT.enBold,
   includeFontPadding: false,
   wordBreak: "keep-all",
@@ -2319,5 +2829,446 @@ const styles = StyleSheet.create({
   },
   tabLabelActive: {
     color: "#0B5D83",
+  },
+  desktopSafeArea: {
+    flex: 1,
+    backgroundColor: "#EEF6FB",
+  },
+  desktopShell: {
+    flex: 1,
+    flexDirection: "row",
+    backgroundColor: "#EEF6FB",
+  },
+  desktopSidebar: {
+    width: 296,
+    backgroundColor: "#FFFFFF",
+    borderRightWidth: 1,
+    borderRightColor: "#D9E8F1",
+    paddingVertical: 26,
+    paddingHorizontal: 20,
+  },
+  desktopBrandBox: {
+    alignItems: "center",
+    paddingBottom: 24,
+    borderBottomWidth: 1,
+    borderBottomColor: "#E5EEF5",
+    marginBottom: 18,
+  },
+  desktopLogo: {
+    width: 116,
+    height: 70,
+    marginBottom: 8,
+  },
+  desktopBrandText: {
+    ...titleText,
+    fontSize: 24,
+    color: "#083A5A",
+  },
+  desktopBrandSub: {
+    ...baseText,
+    fontSize: 13,
+    lineHeight: 20,
+    color: "#5E7486",
+    marginTop: 4,
+  },
+  desktopMenuList: {
+    gap: 10,
+  },
+  desktopMenuButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    borderRadius: 22,
+    paddingVertical: 14,
+    paddingHorizontal: 14,
+    backgroundColor: "#FFFFFF",
+  },
+  desktopMenuButtonActive: {
+    backgroundColor: "#DFF1FA",
+  },
+  desktopMenuIcon: {
+    fontSize: 24,
+    marginRight: 12,
+  },
+  desktopMenuTextBox: {
+    flex: 1,
+  },
+  desktopMenuLabel: {
+    ...titleText,
+    fontSize: 16,
+    color: "#31556B",
+  },
+  desktopMenuLabelActive: {
+    color: "#075C86",
+  },
+  desktopMenuDescription: {
+    ...baseText,
+    fontSize: 12,
+    lineHeight: 18,
+    color: "#7A8B9B",
+    marginTop: 2,
+  },
+  desktopMenuDescriptionActive: {
+    color: "#0B6B98",
+  },
+  desktopSideNotice: {
+    marginTop: "auto",
+    backgroundColor: "#F1F8FC",
+    borderRadius: 22,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: "#D7EAF4",
+  },
+  desktopSideNoticeTitle: {
+    ...titleText,
+    fontSize: 15,
+    color: "#083A5A",
+    marginBottom: 6,
+  },
+  desktopSideNoticeText: {
+    ...baseText,
+    fontSize: 13,
+    lineHeight: 20,
+    color: "#5D7180",
+  },
+  desktopMainArea: {
+    flex: 1,
+    minWidth: 0,
+  },
+  desktopTopHeader: {
+    height: 86,
+    backgroundColor: "#FFFFFF",
+    borderBottomWidth: 1,
+    borderBottomColor: "#D9E8F1",
+    paddingHorizontal: 34,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  desktopHeaderTitle: {
+    ...titleText,
+    fontSize: 24,
+    color: "#083A5A",
+  },
+  desktopHeaderSub: {
+    ...baseText,
+    fontSize: 14,
+    lineHeight: 21,
+    color: "#5E7486",
+    marginTop: 2,
+  },
+  desktopHeaderButton: {
+    backgroundColor: "#0B78A6",
+    borderRadius: 18,
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+  },
+  desktopHeaderButtonText: {
+    ...buttonText,
+    color: "#FFFFFF",
+    fontSize: 15,
+  },
+  desktopContentScroll: {
+    padding: 34,
+    paddingBottom: 60,
+    gap: 22,
+  },
+  desktopHeroGrid: {
+    flexDirection: "row",
+    gap: 22,
+  },
+  desktopHeroCard: {
+    flex: 1.6,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 34,
+    padding: 34,
+    borderWidth: 1,
+    borderColor: "#DDEBF4",
+    shadowColor: "#A8C6D8",
+    shadowOpacity: 0.2,
+    shadowRadius: 22,
+    shadowOffset: { width: 0, height: 10 },
+  },
+  desktopStatusCard: {
+    flex: 1,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 34,
+    padding: 28,
+    borderWidth: 1,
+    borderColor: "#DDEBF4",
+  },
+  desktopEyebrow: {
+    ...englishText,
+    fontSize: 13,
+    letterSpacing: 1.5,
+    color: "#0B78A6",
+    marginBottom: 14,
+  },
+  desktopHeroTitle: {
+    ...titleText,
+    fontSize: 40,
+    lineHeight: 56,
+    color: "#083A5A",
+    marginBottom: 18,
+  },
+  desktopHeroText: {
+    ...baseText,
+    fontSize: 18,
+    lineHeight: 31,
+    color: "#496677",
+    maxWidth: 760,
+  },
+  desktopHeroButtonRow: {
+    flexDirection: "row",
+    gap: 12,
+    marginTop: 28,
+  },
+  desktopPrimaryButton: {
+    backgroundColor: "#0B78A6",
+    borderRadius: 20,
+    paddingVertical: 14,
+    paddingHorizontal: 22,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  desktopPrimaryButtonText: {
+    ...buttonText,
+    color: "#FFFFFF",
+    fontSize: 16,
+  },
+  desktopSecondaryButton: {
+    backgroundColor: "#EAF5FB",
+    borderRadius: 20,
+    paddingVertical: 14,
+    paddingHorizontal: 22,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  desktopSecondaryButtonText: {
+    ...buttonText,
+    color: "#0B5D83",
+    fontSize: 16,
+  },
+  desktopPanelTitle: {
+    ...titleText,
+    fontSize: 22,
+    color: "#083A5A",
+    marginBottom: 10,
+  },
+  desktopPanelDescription: {
+    ...baseText,
+    fontSize: 15,
+    lineHeight: 24,
+    color: "#5D7180",
+    marginBottom: 16,
+  },
+  desktopStatRow: {
+    flexDirection: "row",
+    gap: 14,
+    marginBottom: 20,
+  },
+  desktopStatBox: {
+    flex: 1,
+    backgroundColor: "#F1F8FC",
+    borderRadius: 22,
+    padding: 18,
+    alignItems: "center",
+  },
+  desktopStatNumber: {
+    ...englishText,
+    fontSize: 32,
+    color: "#0B78A6",
+  },
+  desktopStatLabel: {
+    ...baseText,
+    fontSize: 14,
+    color: "#536D80",
+    marginTop: 4,
+  },
+  desktopMiniFeatureList: {
+    gap: 8,
+  },
+  desktopMiniFeature: {
+    ...baseText,
+    fontSize: 15,
+    lineHeight: 24,
+    color: "#31556B",
+  },
+  desktopThreeColumn: {
+    flexDirection: "row",
+    gap: 18,
+  },
+  desktopActionCard: {
+    flex: 1,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 28,
+    padding: 24,
+    borderWidth: 1,
+    borderColor: "#DDEBF4",
+  },
+  desktopActionIcon: {
+    fontSize: 34,
+    marginBottom: 12,
+  },
+  desktopActionTitle: {
+    ...titleText,
+    fontSize: 21,
+    color: "#083A5A",
+    marginBottom: 8,
+  },
+  desktopActionText: {
+    ...baseText,
+    fontSize: 15,
+    lineHeight: 25,
+    color: "#5A7080",
+  },
+  desktopInfoGrid: {
+    flexDirection: "row",
+    gap: 18,
+  },
+  desktopInfoPanel: {
+    flex: 1,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 28,
+    padding: 26,
+    borderWidth: 1,
+    borderColor: "#DDEBF4",
+  },
+  desktopStepText: {
+    ...baseText,
+    fontSize: 16,
+    lineHeight: 27,
+    color: "#405B6E",
+    marginTop: 8,
+  },
+  desktopWorkspaceHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 20,
+    marginBottom: 2,
+  },
+  desktopPageTitle: {
+    ...titleText,
+    fontSize: 32,
+    lineHeight: 44,
+    color: "#083A5A",
+  },
+  desktopPageSubtitle: {
+    ...baseText,
+    fontSize: 16,
+    lineHeight: 25,
+    color: "#5B7180",
+    marginTop: 4,
+  },
+  desktopWorkspaceGrid: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 22,
+  },
+  desktopPanelCard: {
+    flex: 1,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 30,
+    padding: 26,
+    borderWidth: 1,
+    borderColor: "#DDEBF4",
+    minWidth: 0,
+  },
+  desktopTextArea: {
+    ...baseText,
+    minHeight: 170,
+    borderRadius: 22,
+    borderWidth: 1.5,
+    borderColor: "#C8DFEB",
+    backgroundColor: "#F8FCFE",
+    padding: 18,
+    fontSize: 17,
+    lineHeight: 29,
+    color: "#14394F",
+    outlineStyle: "none",
+  },
+  desktopButtonRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 10,
+    marginTop: 14,
+    alignItems: "center",
+  },
+  desktopSmallButton: {
+    backgroundColor: "#EAF5FB",
+    borderRadius: 18,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+  },
+  desktopSmallButtonText: {
+    ...buttonText,
+    color: "#0B5D83",
+    fontSize: 15,
+  },
+  desktopClearButton: {
+    backgroundColor: "#F2F4F6",
+    borderRadius: 18,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+  },
+  desktopClearButtonText: {
+    ...buttonText,
+    color: "#5A6D7B",
+    fontSize: 15,
+  },
+  desktopDivider: {
+    height: 1,
+    backgroundColor: "#E1EEF5",
+    marginVertical: 24,
+  },
+  desktopPhotoRow: {
+    flexDirection: "row",
+    gap: 16,
+    marginTop: 16,
+    backgroundColor: "#F8FCFE",
+    borderRadius: 24,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: "#D8EAF3",
+  },
+  desktopMedicineImage: {
+    width: 180,
+    height: 180,
+    borderRadius: 18,
+    backgroundColor: "#FFFFFF",
+  },
+  desktopPhotoTextBox: {
+    flex: 1,
+    minWidth: 0,
+  },
+  desktopEmptyPhotoBox: {
+    marginTop: 14,
+    borderRadius: 22,
+    borderWidth: 1.5,
+    borderColor: "#D0E4EF",
+    backgroundColor: "#F8FCFE",
+    padding: 18,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  desktopPlanBox: {
+    marginTop: 12,
+  },
+  desktopRecordGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 16,
+  },
+  desktopReminderGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 16,
+  },
+  recordPreviewText: {
+    ...baseText,
+    fontSize: 14,
+    lineHeight: 22,
+    color: "#5B7180",
+    marginTop: 8,
   },
 });
