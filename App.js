@@ -129,6 +129,20 @@ export default function App() {
     }
   });
 
+  async function initializeNotifications() {
+    try {
+      await Notifications.setNotificationChannelAsync("medicine-reminders", {
+        name: "약 복용 알림",
+        importance: Notifications.AndroidImportance.HIGH,
+        sound: "default",
+        vibrationPattern: [0, 250, 250, 250],
+        lightColor: "#0B78A6",
+      });
+    } catch (error) {
+      console.log("notification channel error", error);
+    }
+  }
+
   useEffect(() => {
     loadStoredData();
     initializeNotifications();
@@ -790,25 +804,146 @@ ${result.hospital}
     }
   };
 
+  const requestNotificationPermission = async () => {
+    await initializeNotifications();
+
+    const currentPermission = await Notifications.getPermissionsAsync();
+
+    if (currentPermission.granted) {
+      return true;
+    }
+
+    const requestedPermission = await Notifications.requestPermissionsAsync();
+    return requestedPermission.granted;
+  };
+
+  const getSecondsUntilTime = (timeText) => {
+    const parsed = parseTime(timeText);
+    const now = new Date();
+    const target = new Date();
+
+    target.setHours(parsed.hour, parsed.minute, 0, 0);
+
+    if (target.getTime() <= now.getTime() + 60000) {
+      target.setDate(target.getDate() + 1);
+    }
+
+    return Math.max(60, Math.round((target.getTime() - now.getTime()) / 1000));
+  };
+
+  const scheduleMedicineNotification = async (plan) => {
+    const secondsUntilReminder = getSecondsUntilTime(plan.timeText);
+    const medicineText = plan.medicines.join(", ");
+
+    return Notifications.scheduleNotificationAsync({
+      content: {
+        title: "마이닥터 약 복용 알림",
+        body: `${medicineText} 복용 시간입니다. 약 봉투의 복용법을 한 번 더 확인해주세요.`,
+        data: {
+          type: "medicine-reminder",
+          label: plan.label,
+          medicines: plan.medicines,
+          timeText: plan.timeText,
+        },
+      },
+      trigger: {
+        seconds: secondsUntilReminder,
+        channelId: "medicine-reminders",
+      },
+    });
+  };
+
+  const scheduleTestNotification = async () => {
+    try {
+      const permissionGranted = await requestNotificationPermission();
+
+      if (!permissionGranted) {
+        Alert.alert(
+          "알림 권한 필요",
+          "약 복용 알림을 받으려면 알림 권한을 허용해주세요."
+        );
+        return;
+      }
+
+      await Notifications.scheduleNotificationAsync({
+        content: {
+          title: "마이닥터 테스트 알림",
+          body: "알림이 정상적으로 도착했습니다. 이제 약 복용 알림을 받을 수 있습니다.",
+          data: { type: "test-notification" },
+        },
+        trigger: {
+          seconds: 8,
+          channelId: "medicine-reminders",
+        },
+      });
+
+      Alert.alert("테스트 알림 예약", "약 8초 뒤 테스트 알림이 도착합니다.");
+    } catch (error) {
+      console.log("test notification error", error);
+      Alert.alert(
+        "알림 설정 오류",
+        "테스트 알림을 예약하지 못했습니다. 알림 권한을 확인해주세요."
+      );
+    }
+  };
+
   const saveReminderPlans = async () => {
-    const plans = buildReminderPlans(reminderDrafts, mealTimes).map((plan) => ({
-      ...plan,
-      createdAt: new Date().toISOString(),
-    }));
+    try {
+      const permissionGranted = await requestNotificationPermission();
 
-    const nextReminders = [...plans, ...reminders];
-    await saveReminders(nextReminders);
+      if (!permissionGranted) {
+        Alert.alert(
+          "알림 권한 필요",
+          "약 복용 알림을 저장하려면 알림 권한을 허용해주세요."
+        );
+        return;
+      }
 
-    Alert.alert(
-      "약 알림 초안 저장",
-      "복용 시간 초안이 저장되었습니다.\n실제 푸시 알림은 다음 단계에서 연결합니다."
-    );
+      const basePlans = buildReminderPlans(reminderDrafts, mealTimes);
+      const scheduledPlans = [];
 
-    setActiveTab("reminders");
-    setScreen("reminders");
+      for (const plan of basePlans) {
+        const notificationId = await scheduleMedicineNotification(plan);
+
+        scheduledPlans.push({
+          ...plan,
+          notificationId,
+          createdAt: new Date().toISOString(),
+        });
+      }
+
+      const nextReminders = [...scheduledPlans, ...reminders];
+      await saveReminders(nextReminders);
+
+      Alert.alert(
+        "약 알림 저장",
+        "약 복용 알림이 저장되었습니다. 정해진 시간에 휴대폰 알림으로 알려드립니다."
+      );
+
+      setActiveTab("reminders");
+      setScreen("reminders");
+    } catch (error) {
+      console.log("save reminder notification error", error);
+      Alert.alert(
+        "알림 저장 오류",
+        "약 알림을 저장하지 못했습니다. 알림 권한을 확인한 뒤 다시 시도해주세요."
+      );
+    }
   };
 
   const deleteReminder = async (id) => {
+    const targetReminder = reminders.find((item) => item.id === id);
+
+    if (targetReminder?.notificationId) {
+      try {
+        await Notifications.cancelScheduledNotificationAsync(
+          targetReminder.notificationId
+        );
+      } catch (error) {
+        console.log("cancel notification error", error);
+      }
+    }
+
     const nextReminders = reminders.filter((item) => item.id !== id);
     await saveReminders(nextReminders);
   };
