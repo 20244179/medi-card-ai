@@ -339,6 +339,22 @@ export default function App() {
     };
   };
 
+  const getMedicinePurposeLabel = (type) => {
+    if (type === "diabetes") {
+      return "당뇨병 약";
+    }
+
+    if (type === "bloodPressure") {
+      return "혈압약";
+    }
+
+    if (type === "reflux") {
+      return "위산·역류성 식도염 약";
+    }
+
+    return "복용 약";
+  };
+
   const generateReminderDrafts = (type, text = "") => {
     const detected = type !== "unknown" ? type : detectMedicineType(text);
 
@@ -893,15 +909,33 @@ ${result.hospital}
     return Math.max(60, Math.round((target.getTime() - now.getTime()) / 1000));
   };
 
-  const scheduleMedicineNotification = async (plan) => {
-    const parsed = parseTime(plan.timeText);
+  const getNextReminderDate = (timeText) => {
+    const parsed = parseTime(timeText);
 
     if (!parsed) {
+      return null;
+    }
+
+    const now = new Date();
+    const target = new Date();
+
+    target.setHours(parsed.hour, parsed.minute, 0, 0);
+
+    if (target.getTime() <= now.getTime() + 60000) {
+      target.setDate(target.getDate() + 1);
+    }
+
+    return target;
+  };
+
+  const scheduleMedicineNotification = async (plan) => {
+    const targetDate = getNextReminderDate(plan.timeText);
+
+    if (!targetDate) {
       throw new Error("식사 시간이 설정되지 않았습니다.");
     }
 
     const medicineText = plan.medicines.join(", ");
-    const dailyTriggerType = Notifications.SchedulableTriggerInputTypes?.DAILY;
 
     return Notifications.scheduleNotificationAsync({
       content: {
@@ -914,53 +948,34 @@ ${result.hospital}
           timeText: plan.timeText,
         },
       },
-      trigger: dailyTriggerType
-        ? {
-            type: dailyTriggerType,
-            hour: parsed.hour,
-            minute: parsed.minute,
-            channelId: "medicine-reminders",
-          }
-        : {
-            hour: parsed.hour,
-            minute: parsed.minute,
-            repeats: true,
-            channelId: "medicine-reminders",
-          },
+      trigger: {
+        date: targetDate,
+        channelId: "medicine-reminders",
+      },
     });
   };
 
-  const scheduleTestNotification = async () => {
-    try {
-      const permissionGranted = await requestNotificationPermission();
+  const cancelReminderNotifications = async (reminder) => {
+    const notificationIds = [];
 
-      if (!permissionGranted) {
-        Alert.alert(
-          "알림 권한 필요",
-          "약 복용 알림을 받으려면 알림 권한을 허용해주세요."
-        );
-        return;
-      }
+    if (reminder?.notificationId) {
+      notificationIds.push(reminder.notificationId);
+    }
 
-      await Notifications.scheduleNotificationAsync({
-        content: {
-          title: "마이닥터 테스트 알림",
-          body: "알림이 정상적으로 도착했습니다. 이제 약 복용 알림을 받을 수 있습니다.",
-          data: { type: "test-notification" },
-        },
-        trigger: {
-          seconds: 8,
-          channelId: "medicine-reminders",
-        },
+    if (Array.isArray(reminder?.notificationIds)) {
+      reminder.notificationIds.forEach((id) => {
+        if (id) {
+          notificationIds.push(id);
+        }
       });
+    }
 
-      Alert.alert("테스트 알림 예약", "약 8초 뒤 테스트 알림이 도착합니다.");
-    } catch (error) {
-      console.log("test notification error", error);
-      Alert.alert(
-        "알림 설정 오류",
-        "테스트 알림을 예약하지 못했습니다. 알림 권한을 확인해주세요."
-      );
+    for (const id of Array.from(new Set(notificationIds))) {
+      try {
+        await Notifications.cancelScheduledNotificationAsync(id);
+      } catch (error) {
+        console.log("cancel notification error", error);
+      }
     }
   };
 
@@ -973,13 +988,7 @@ ${result.hospital}
         continue;
       }
 
-      if (reminder.notificationId) {
-        try {
-          await Notifications.cancelScheduledNotificationAsync(reminder.notificationId);
-        } catch (error) {
-          console.log("cancel notification before reschedule error", error);
-        }
-      }
+      await cancelReminderNotifications(reminder);
 
       const nextTimeText = addMinutesToTime(
         nextMealTimes[reminder.mealKey],
@@ -991,6 +1000,7 @@ ${result.hospital}
           ...reminder,
           timeText: "",
           notificationId: null,
+          notificationIds: [],
         });
         continue;
       }
@@ -1005,6 +1015,7 @@ ${result.hospital}
         updatedReminders.push({
           ...nextPlan,
           notificationId,
+          notificationIds: [notificationId],
           updatedAt: new Date().toISOString(),
         });
       } catch (error) {
@@ -1012,6 +1023,7 @@ ${result.hospital}
         updatedReminders.push({
           ...nextPlan,
           notificationId: null,
+          notificationIds: [],
         });
       }
     }
@@ -1049,13 +1061,19 @@ ${result.hospital}
 
       const basePlans = buildReminderPlans(reminderDrafts, mealTimes);
       const scheduledPlans = [];
+      const savedAt = Date.now();
+      const purposeLabel = getMedicinePurposeLabel(medicineHintType);
 
-      for (const plan of basePlans) {
+      for (let index = 0; index < basePlans.length; index += 1) {
+        const plan = basePlans[index];
         const notificationId = await scheduleMedicineNotification(plan);
 
         scheduledPlans.push({
           ...plan,
+          id: `${plan.id}-${savedAt}-${index}`,
+          purposeLabel,
           notificationId,
+          notificationIds: [notificationId],
           createdAt: new Date().toISOString(),
         });
       }
@@ -1079,21 +1097,44 @@ ${result.hospital}
     }
   };
 
-  const deleteReminder = async (id) => {
-    const targetReminder = reminders.find((item) => item.id === id);
-
-    if (targetReminder?.notificationId) {
-      try {
-        await Notifications.cancelScheduledNotificationAsync(
-          targetReminder.notificationId
-        );
-      } catch (error) {
-        console.log("cancel notification error", error);
+  const deleteReminder = async (id, notificationId) => {
+    const targetReminder = reminders.find((item) => {
+      if (notificationId && item.notificationId) {
+        return item.id === id && item.notificationId === notificationId;
       }
-    }
 
-    const nextReminders = reminders.filter((item) => item.id !== id);
-    await saveReminders(nextReminders);
+      return item.id === id;
+    });
+
+    Alert.alert(
+      "알림 삭제",
+      "이 약 알림을 삭제할까요? 삭제하면 예약된 휴대폰 알림도 함께 취소됩니다.",
+      [
+        {
+          text: "취소",
+          style: "cancel",
+        },
+        {
+          text: "삭제하기",
+          style: "destructive",
+          onPress: async () => {
+            if (targetReminder) {
+              await cancelReminderNotifications(targetReminder);
+            }
+
+            const nextReminders = reminders.filter((item) => {
+              if (notificationId && item.notificationId) {
+                return !(item.id === id && item.notificationId === notificationId);
+              }
+
+              return item.id !== id;
+            });
+
+            await saveReminders(nextReminders);
+          },
+        },
+      ]
+    );
   };
 
   const clearInputState = () => {
@@ -1496,6 +1537,9 @@ ${result.hospital}
             {reminderDrafts.map((draft) => (
               <View key={draft.id} style={styles.draftCard}>
                 <Text style={styles.draftTitle}>{draft.label}</Text>
+                <Text style={styles.medicinePurposeText}>
+                  {getMedicinePurposeLabel(medicineHintType)}
+                </Text>
 
                 {draft.medicines.map((med) => (
                   <Text key={med} style={styles.draftMedicine}>
@@ -1550,6 +1594,9 @@ ${result.hospital}
 
                 <View style={styles.planTextBox}>
                   <Text style={styles.planTitle}>{plan.label}</Text>
+                  <Text style={styles.medicinePurposeText}>
+                    {getMedicinePurposeLabel(medicineHintType)}
+                  </Text>
                   <Text style={styles.planBody}>{plan.medicines.join(", ")}</Text>
                 </View>
               </View>
@@ -1629,17 +1676,20 @@ ${result.hospital}
               text="쉬운 설명 카드에서 약 알림 설정을 눌러 알림을 만들 수 있습니다."
             />
           ) : (
-            reminders.map((item) => (
-              <View key={item.id} style={styles.reminderCard}>
+            reminders.map((item, index) => (
+              <View key={`${item.id}-${item.notificationId || index}`} style={styles.reminderCard}>
                 <Text style={styles.reminderTime}>
                   {item.timeText ? formatTimeForDisplay(item.timeText) : "시간 설정 필요"}
                 </Text>
                 <Text style={styles.reminderTitle}>{item.label}</Text>
+                <Text style={styles.medicinePurposeText}>
+                  {item.purposeLabel || "복용 약"}
+                </Text>
                 <Text style={styles.reminderBody}>{item.medicines.join(", ")}</Text>
 
                 <TouchableOpacity
                   style={styles.recordDeleteButton}
-                  onPress={() => deleteReminder(item.id)}
+                  onPress={() => deleteReminder(item.id, item.notificationId)}
                 >
                   <Text style={styles.recordDeleteText}>알림 삭제</Text>
                 </TouchableOpacity>
@@ -2451,6 +2501,18 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: "800",
     color: "#083A5A",
+    marginBottom: 8,
+  },
+  medicinePurposeText: {
+    alignSelf: "flex-start",
+    backgroundColor: "#EAF7EF",
+    borderRadius: 999,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    fontSize: 15,
+    lineHeight: 23,
+    fontWeight: "800",
+    color: "#14532D",
     marginBottom: 8,
   },
   draftMedicine: {
