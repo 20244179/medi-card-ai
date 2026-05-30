@@ -620,11 +620,8 @@ export default function App() {
     setMedicineHintType(detectedType);
 
     if (ocrText.trim()) {
-      const previewText =
-        ocrText.length > 160 ? `${ocrText.slice(0, 160)}...` : ocrText;
-
       setMedicinePhotoAnalysis(
-        `${analysis.title}\n${analysis.message}\n\n사진에서 읽은 글자 일부:\n${previewText}`
+        `${analysis.title}\n${analysis.message}\n\n약 봉투 사진의 글자를 확인해 복약 설명에 반영했습니다.`
       );
     } else {
       setMedicinePhotoAnalysis(
@@ -897,13 +894,14 @@ ${result.hospital}
   };
 
   const scheduleMedicineNotification = async (plan) => {
-    const secondsUntilReminder = getSecondsUntilTime(plan.timeText);
+    const parsed = parseTime(plan.timeText);
 
-    if (!secondsUntilReminder) {
+    if (!parsed) {
       throw new Error("식사 시간이 설정되지 않았습니다.");
     }
 
     const medicineText = plan.medicines.join(", ");
+    const dailyTriggerType = Notifications.SchedulableTriggerInputTypes?.DAILY;
 
     return Notifications.scheduleNotificationAsync({
       content: {
@@ -916,10 +914,19 @@ ${result.hospital}
           timeText: plan.timeText,
         },
       },
-      trigger: {
-        seconds: secondsUntilReminder,
-        channelId: "medicine-reminders",
-      },
+      trigger: dailyTriggerType
+        ? {
+            type: dailyTriggerType,
+            hour: parsed.hour,
+            minute: parsed.minute,
+            channelId: "medicine-reminders",
+          }
+        : {
+            hour: parsed.hour,
+            minute: parsed.minute,
+            repeats: true,
+            channelId: "medicine-reminders",
+          },
     });
   };
 
@@ -1061,8 +1068,8 @@ ${result.hospital}
         "약 복용 알림이 저장되었습니다. 설정한 식사 시간에 맞춰 휴대폰 알림으로 알려드립니다."
       );
 
-      setActiveTab("reminders");
-      setScreen("reminders");
+      setActiveTab("home");
+      setScreen("result");
     } catch (error) {
       console.log("save reminder notification error", error);
       Alert.alert(
@@ -1419,6 +1426,30 @@ ${result.hospital}
             </View>
           ) : null}
 
+          {editingRecord ? (
+            <View style={styles.sectionCard}>
+              <Text style={styles.sectionTitle}>당시 입력한 내용</Text>
+              {userInput ? (
+                <Text style={styles.recordDetailText}>{userInput}</Text>
+              ) : (
+                <Text style={styles.sectionDescription}>저장된 입력 내용이 없습니다.</Text>
+              )}
+
+              {medicinePhotoUri ? (
+                <View style={styles.savedPhotoBox}>
+                  <Text style={styles.photoPreviewTitle}>당시 첨부한 약 봉투 사진</Text>
+                  <View style={styles.medicineImageFrame}>
+                    <Image
+                      source={{ uri: medicinePhotoUri }}
+                      style={styles.medicineImage}
+                      resizeMode="contain"
+                    />
+                  </View>
+                </View>
+              ) : null}
+            </View>
+          ) : null}
+
           <View style={styles.summaryBox}>
             <Text style={styles.summaryTitle}>💡 오늘 꼭 기억할 내용</Text>
             <Text style={styles.summaryText}>{result.summary}</Text>
@@ -1750,98 +1781,127 @@ function InfoCard({ icon, title, text }) {
 
 function MealInput({ label, value, onChangeText }) {
   const parsed = parseTimeValue(value);
-  const selectedMeridiem = parsed ? (parsed.hour < 12 ? "오전" : "오후") : "";
-  const selectedHour = parsed ? (parsed.hour % 12 === 0 ? 12 : parsed.hour % 12) : null;
-  const selectedMinute = parsed ? parsed.minute : null;
+  const initialMeridiem = parsed ? (parsed.hour < 12 ? "오전" : "오후") : "오전";
+  const initialHour = parsed ? (parsed.hour % 12 === 0 ? 12 : parsed.hour % 12) : 8;
+  const initialMinute = parsed ? parsed.minute : 0;
 
-  const updateSelectedTime = (nextMeridiem, nextHour, nextMinute) => {
-    const meridiem = nextMeridiem || selectedMeridiem || "오전";
-    const hour = nextHour || selectedHour || 8;
-    const minute = typeof nextMinute === "number" ? nextMinute : selectedMinute ?? 0;
+  const [isOpen, setIsOpen] = useState(false);
+  const [draftMeridiem, setDraftMeridiem] = useState(initialMeridiem);
+  const [draftHour, setDraftHour] = useState(initialHour);
+  const [draftMinute, setDraftMinute] = useState(initialMinute);
 
-    let finalHour = hour % 12;
+  useEffect(() => {
+    const nextParsed = parseTimeValue(value);
 
-    if (meridiem === "오후") {
+    if (nextParsed) {
+      setDraftMeridiem(nextParsed.hour < 12 ? "오전" : "오후");
+      setDraftHour(nextParsed.hour % 12 === 0 ? 12 : nextParsed.hour % 12);
+      setDraftMinute(nextParsed.minute);
+    }
+  }, [value]);
+
+  const saveSelectedTime = () => {
+    let finalHour = draftHour % 12;
+
+    if (draftMeridiem === "오후") {
       finalHour += 12;
     }
 
-    onChangeText(`${String(finalHour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`);
+    onChangeText(`${String(finalHour).padStart(2, "0")}:${String(draftMinute).padStart(2, "0")}`);
+    setIsOpen(false);
   };
 
   return (
     <View style={styles.mealInputRow}>
-      <View style={styles.mealHeaderRow}>
-        <Text style={styles.mealInputLabel}>{label}</Text>
-        <Text style={styles.mealCurrentText}>
-          {value ? formatTimeValueForDisplay(value) : "아직 설정하지 않음"}
+      <TouchableOpacity
+        style={styles.mealCollapsedButton}
+        onPress={() => setIsOpen((prev) => !prev)}
+        activeOpacity={0.84}
+      >
+        <View style={styles.mealHeaderRow}>
+          <Text style={styles.mealInputLabel}>{label}</Text>
+          <Text style={styles.mealCurrentText}>
+            {value ? formatTimeValueForDisplay(value) : "아직 설정하지 않음"}
+          </Text>
+        </View>
+        <Text style={styles.mealOpenGuide}>
+          {isOpen ? "시간 선택 닫기" : "눌러서 시간 선택하기"}
         </Text>
-      </View>
+      </TouchableOpacity>
 
-      <View style={styles.timeOptionGroup}>
-        {meridiemOptions.map((option) => (
-          <TouchableOpacity
-            key={option}
-            style={[
-              styles.timeOptionButton,
-              selectedMeridiem === option && styles.timeOptionButtonActive,
-            ]}
-            onPress={() => updateSelectedTime(option, selectedHour || 8, selectedMinute ?? 0)}
-          >
-            <Text
-              style={[
-                styles.timeOptionText,
-                selectedMeridiem === option && styles.timeOptionTextActive,
-              ]}
-            >
-              {option}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </View>
+      {isOpen ? (
+        <View style={styles.mealPickerBox}>
+          <View style={styles.timeOptionGroup}>
+            {meridiemOptions.map((option) => (
+              <TouchableOpacity
+                key={option}
+                style={[
+                  styles.timeOptionButton,
+                  draftMeridiem === option && styles.timeOptionButtonActive,
+                ]}
+                onPress={() => setDraftMeridiem(option)}
+              >
+                <Text
+                  style={[
+                    styles.timeOptionText,
+                    draftMeridiem === option && styles.timeOptionTextActive,
+                  ]}
+                >
+                  {option}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
 
-      <View style={styles.timeOptionGroupWrap}>
-        {hourOptions.map((hour) => (
-          <TouchableOpacity
-            key={hour}
-            style={[
-              styles.timeSmallOptionButton,
-              selectedHour === hour && styles.timeOptionButtonActive,
-            ]}
-            onPress={() => updateSelectedTime(selectedMeridiem || "오전", hour, selectedMinute ?? 0)}
-          >
-            <Text
-              style={[
-                styles.timeOptionText,
-                selectedHour === hour && styles.timeOptionTextActive,
-              ]}
-            >
-              {hour}시
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </View>
+          <View style={styles.timeOptionGroupWrap}>
+            {hourOptions.map((hour) => (
+              <TouchableOpacity
+                key={hour}
+                style={[
+                  styles.timeSmallOptionButton,
+                  draftHour === hour && styles.timeOptionButtonActive,
+                ]}
+                onPress={() => setDraftHour(hour)}
+              >
+                <Text
+                  style={[
+                    styles.timeOptionText,
+                    draftHour === hour && styles.timeOptionTextActive,
+                  ]}
+                >
+                  {hour}시
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
 
-      <View style={styles.timeOptionGroupWrap}>
-        {minuteOptions.map((minute) => (
-          <TouchableOpacity
-            key={minute}
-            style={[
-              styles.timeSmallOptionButton,
-              selectedMinute === minute && styles.timeOptionButtonActive,
-            ]}
-            onPress={() => updateSelectedTime(selectedMeridiem || "오전", selectedHour || 8, minute)}
-          >
-            <Text
-              style={[
-                styles.timeOptionText,
-                selectedMinute === minute && styles.timeOptionTextActive,
-              ]}
-            >
-              {String(minute).padStart(2, "0")}분
-            </Text>
+          <View style={styles.timeOptionGroupWrap}>
+            {minuteOptions.map((minute) => (
+              <TouchableOpacity
+                key={minute}
+                style={[
+                  styles.timeSmallOptionButton,
+                  draftMinute === minute && styles.timeOptionButtonActive,
+                ]}
+                onPress={() => setDraftMinute(minute)}
+              >
+                <Text
+                  style={[
+                    styles.timeOptionText,
+                    draftMinute === minute && styles.timeOptionTextActive,
+                  ]}
+                >
+                  {String(minute).padStart(2, "0")}분
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+
+          <TouchableOpacity style={styles.timeSaveButton} onPress={saveSelectedTime}>
+            <Text style={styles.timeSaveButtonText}>시간 저장하기</Text>
           </TouchableOpacity>
-        ))}
-      </View>
+        </View>
+      ) : null}
     </View>
   );
 }
@@ -2663,6 +2723,53 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "800",
     color: "#0B5D83",
+  },
+  recordDetailText: {
+    fontSize: 17,
+    lineHeight: 30,
+    color: "#17384A",
+    backgroundColor: "#F8FBFD",
+    borderRadius: 18,
+    padding: 14,
+    borderWidth: 1.2,
+    borderColor: "#D8E7F0",
+    marginBottom: 14,
+  },
+  savedPhotoBox: {
+    marginTop: 8,
+  },
+  mealCollapsedButton: {
+    backgroundColor: "#F8FBFD",
+    borderRadius: 18,
+    borderWidth: 1.4,
+    borderColor: "#BCD7E5",
+    padding: 14,
+  },
+  mealOpenGuide: {
+    fontSize: 15,
+    fontWeight: "800",
+    color: "#0B78A6",
+    marginTop: 8,
+  },
+  mealPickerBox: {
+    marginTop: 10,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 18,
+    borderWidth: 1.2,
+    borderColor: "#D8E7F0",
+    padding: 12,
+  },
+  timeSaveButton: {
+    marginTop: 10,
+    backgroundColor: "#0B78A6",
+    borderRadius: 18,
+    paddingVertical: 14,
+    alignItems: "center",
+  },
+  timeSaveButtonText: {
+    fontSize: 16,
+    fontWeight: "800",
+    color: "#FFFFFF",
   },
   bottomTabs: {
     height: 82,
