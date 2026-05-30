@@ -36,11 +36,18 @@
           "photosPermission": "약 봉투 사진을 선택하기 위해 사진 접근 권한이 필요합니다.",
           "cameraPermission": "약 봉투를 촬영하기 위해 카메라 권한이 필요합니다."
         }
+      ],
+      [
+        "expo-speech-recognition",
+        {
+          "microphonePermission": "진료 내용을 음성으로 입력하기 위해 마이크 권한이 필요합니다.",
+          "speechRecognitionPermission": "진료 내용을 음성으로 입력하기 위해 음성 인식 권한이 필요합니다."
+        }
       ]
     ],
     "extra": {
       "eas": {
-        "projectId": "457e3927-7204-4af8-9e69-0ee7e8faafc9"
+        "projectId": "457e3927-7204-4af8-9e69-0ee7e8fafc9"
       }
     }
   }

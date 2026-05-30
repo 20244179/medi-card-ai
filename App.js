@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   Alert,
   Image,
@@ -15,6 +15,10 @@ import {
 } from "react-native";
 import * as ImagePicker from "expo-image-picker";
 import { extractTextFromImage, isSupported } from "expo-text-extractor";
+import {
+  ExpoSpeechRecognitionModule,
+  useSpeechRecognitionEvent,
+} from "expo-speech-recognition";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const LOGO = require("./assets/mydoctor-logo.png");
@@ -64,6 +68,55 @@ export default function App() {
   const [reminderDrafts, setReminderDrafts] = useState([]);
   const [familyMessage, setFamilyMessage] = useState("");
   const [editingRecord, setEditingRecord] = useState(null);
+
+  const [isListening, setIsListening] = useState(false);
+  const [speechStatusText, setSpeechStatusText] = useState(
+    "천천히 말씀하시면 입력칸에 자동으로 추가됩니다."
+  );
+  const lastSpeechTextRef = useRef("");
+
+  useSpeechRecognitionEvent("start", () => {
+    setIsListening(true);
+    setSpeechStatusText("듣고 있습니다. 진료실에서 들은 내용을 천천히 말씀해주세요.");
+  });
+
+  useSpeechRecognitionEvent("end", () => {
+    setIsListening(false);
+    setSpeechStatusText("음성 입력이 끝났습니다. 내용이 맞는지 확인해주세요.");
+    lastSpeechTextRef.current = "";
+  });
+
+  useSpeechRecognitionEvent("error", (event) => {
+    setIsListening(false);
+    setSpeechStatusText(
+      "음성을 정확히 듣지 못했습니다. 조용한 곳에서 다시 시도하거나 직접 입력해주세요."
+    );
+    console.log("speech recognition error", event);
+  });
+
+  useSpeechRecognitionEvent("result", (event) => {
+    const transcript = extractSpeechTranscript(event);
+
+    if (!transcript || transcript === lastSpeechTextRef.current) {
+      return;
+    }
+
+    lastSpeechTextRef.current = transcript;
+
+    setUserInput((prev) => {
+      const prefix = prev.trim() ? `${prev.trim()} ` : "";
+      return `${prefix}${transcript}`;
+    });
+
+    const type = detectMedicineType(`${userInput} ${transcript} ${medicinePhotoName} ${medicineOcrText}`);
+
+    if (type !== "unknown") {
+      const analysis = getMedicineAnalysisText(type);
+      setMedicineHintType(type);
+      setMedicinePhotoAnalysis(`${analysis.title}\n${analysis.message}`);
+      setReminderDrafts(generateReminderDrafts(type, `${userInput} ${transcript}`));
+    }
+  });
 
   useEffect(() => {
     loadStoredData();
@@ -334,6 +387,42 @@ export default function App() {
     return `${hourText}:${minuteText}`;
   };
 
+  const extractSpeechTranscript = (event) => {
+    if (!event) {
+      return "";
+    }
+
+    if (typeof event.transcript === "string") {
+      return event.transcript.trim();
+    }
+
+    if (Array.isArray(event.results) && event.results.length > 0) {
+      const firstResult = event.results[0];
+
+      if (typeof firstResult?.transcript === "string") {
+        return firstResult.transcript.trim();
+      }
+
+      if (Array.isArray(firstResult) && firstResult.length > 0) {
+        const firstAlternative = firstResult[0];
+
+        if (typeof firstAlternative?.transcript === "string") {
+          return firstAlternative.transcript.trim();
+        }
+      }
+
+      if (Array.isArray(firstResult?.alternatives) && firstResult.alternatives.length > 0) {
+        const firstAlternative = firstResult.alternatives[0];
+
+        if (typeof firstAlternative?.transcript === "string") {
+          return firstAlternative.transcript.trim();
+        }
+      }
+    }
+
+    return "";
+  };
+
   const buildReminderPlans = (drafts, currentMealTimes) => {
     const plans = [];
 
@@ -359,6 +448,50 @@ export default function App() {
     });
 
     return plans;
+  };
+
+  const handleStartVoiceInput = async (mode = "append") => {
+    try {
+      const permission = await ExpoSpeechRecognitionModule.requestPermissionsAsync();
+
+      if (!permission.granted) {
+        Alert.alert(
+          "마이크 권한 필요",
+          "음성으로 진료 내용을 입력하려면 마이크 권한을 허용해주세요."
+        );
+        return;
+      }
+
+      if (mode === "reset") {
+        setUserInput("");
+      }
+
+      lastSpeechTextRef.current = "";
+      setSpeechStatusText("듣고 있습니다. 말씀을 마치면 자동으로 입력됩니다.");
+
+      ExpoSpeechRecognitionModule.start({
+        lang: "ko-KR",
+        interimResults: false,
+        continuous: false,
+        maxAlternatives: 1,
+      });
+    } catch (error) {
+      setIsListening(false);
+      setSpeechStatusText(
+        "음성 입력을 시작하지 못했습니다. 직접 입력하거나 다시 시도해주세요."
+      );
+      console.log("start speech recognition error", error);
+    }
+  };
+
+  const handleStopVoiceInput = () => {
+    try {
+      ExpoSpeechRecognitionModule.stop();
+      setSpeechStatusText("음성 입력을 정리하고 있습니다.");
+    } catch (error) {
+      setIsListening(false);
+      console.log("stop speech recognition error", error);
+    }
   };
 
   const processPickedImage = async (asset, sourceLabel) => {
@@ -680,6 +813,9 @@ ${result.hospital}
     setReminderDrafts([]);
     setFamilyMessage("");
     setEditingRecord(null);
+    setIsListening(false);
+    setSpeechStatusText("천천히 말씀하시면 입력칸에 자동으로 추가됩니다.");
+    lastSpeechTextRef.current = "";
   };
 
   const handleClear = () => {
@@ -870,6 +1006,36 @@ ${result.hospital}
               placeholder="예: 당뇨 때문에 병원에 갔고 약을 받았어요. 식후에 먹으라고 하셨어요."
               placeholderTextColor="#6B7C8D"
             />
+
+            <View style={styles.voiceBox}>
+              <Text style={styles.voiceTitle}>음성으로 입력하기</Text>
+              <Text style={styles.voiceDescription}>{speechStatusText}</Text>
+
+              <View style={styles.voiceButtonRow}>
+                <TouchableOpacity
+                  style={[styles.voiceButton, isListening && styles.voiceButtonActive]}
+                  onPress={() => handleStartVoiceInput("append")}
+                  disabled={isListening}
+                >
+                  <Text style={[styles.voiceButtonText, isListening && styles.voiceButtonTextActive]}>
+                    🎙️ 이어 말하기
+                  </Text>
+                </TouchableOpacity>
+
+                {isListening ? (
+                  <TouchableOpacity style={styles.voiceStopButton} onPress={handleStopVoiceInput}>
+                    <Text style={styles.voiceStopButtonText}>듣기 중지</Text>
+                  </TouchableOpacity>
+                ) : (
+                  <TouchableOpacity
+                    style={styles.voiceResetButton}
+                    onPress={() => handleStartVoiceInput("reset")}
+                  >
+                    <Text style={styles.voiceResetButtonText}>처음부터 말하기</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+            </View>
           </View>
 
           <View style={styles.stepBadge}>
@@ -1532,6 +1698,93 @@ const styles = StyleSheet.create({
     lineHeight: 32,
     color: "#0B2535",
     marginBottom: 18,
+  },
+  voiceBox: {
+    backgroundColor: "#F8FBFD",
+    borderRadius: 22,
+    borderWidth: 1.6,
+    borderColor: "#D8E7F0",
+    padding: 16,
+    marginTop: 2,
+  },
+  voiceTitle: {
+    fontSize: 19,
+    lineHeight: 30,
+    fontWeight: "800",
+    color: "#083A5A",
+    marginBottom: 6,
+  },
+  voiceDescription: {
+    fontSize: 16,
+    lineHeight: 28,
+    color: "#315B73",
+    marginBottom: 14,
+  },
+  voiceButtonRow: {
+    flexDirection: "row",
+  },
+  voiceButton: {
+    flex: 1,
+    backgroundColor: "#DFF1FA",
+    borderRadius: 18,
+    paddingVertical: 16,
+    paddingHorizontal: 8,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1.6,
+    borderColor: "#8FC7DE",
+    marginRight: 6,
+  },
+  voiceButtonActive: {
+    backgroundColor: "#0B78A6",
+  },
+  voiceButtonText: {
+    fontSize: 17,
+    lineHeight: 24,
+    fontWeight: "800",
+    color: "#0B5D83",
+    textAlign: "center",
+  },
+  voiceButtonTextActive: {
+    color: "#FFFFFF",
+  },
+  voiceStopButton: {
+    flex: 1,
+    backgroundColor: "#FFF1F2",
+    borderRadius: 18,
+    paddingVertical: 16,
+    paddingHorizontal: 8,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1.6,
+    borderColor: "#FECACA",
+    marginLeft: 6,
+  },
+  voiceStopButtonText: {
+    fontSize: 17,
+    lineHeight: 24,
+    fontWeight: "800",
+    color: "#B91C1C",
+    textAlign: "center",
+  },
+  voiceResetButton: {
+    flex: 1,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 18,
+    paddingVertical: 16,
+    paddingHorizontal: 8,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1.6,
+    borderColor: "#BCD7E5",
+    marginLeft: 6,
+  },
+  voiceResetButtonText: {
+    fontSize: 16,
+    lineHeight: 24,
+    fontWeight: "800",
+    color: "#315B73",
+    textAlign: "center",
   },
   photoButtonRow: {
     flexDirection: "row",
