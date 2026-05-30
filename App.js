@@ -1921,14 +1921,14 @@ const styles = StyleSheet.create({
     color: "#17384A",
   },
   bottomTabs: {
-    height: 82,
+    minHeight: 96,
     backgroundColor: "#FFFFFF",
     borderTopWidth: 1.5,
     borderTopColor: "#D8E7F0",
     flexDirection: "row",
     paddingHorizontal: 8,
     paddingTop: 8,
-    paddingBottom: 8,
+    paddingBottom: 22,
   },
   tabButton: {
     flex: 1,
