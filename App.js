@@ -21,8 +21,19 @@ import {
 } from "expo-speech-recognition";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Notifications from "expo-notifications";
+import { useFonts } from "expo-font";
 
 const LOGO = require("./assets/mydoctor-logo.png");
+
+const FONT = {
+  koRegular: "NanumSquareRoundR",
+  koBold: "NanumSquareRoundB",
+  koExtraBold: "NanumSquareRoundEB",
+  enRegular: "MontserratRegular",
+  enSemiBold: "MontserratSemiBold",
+  enBold: "MontserratBold",
+  enExtraBold: "MontserratExtraBold",
+};
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -70,6 +81,16 @@ const defaultResult = {
 };
 
 export default function App() {
+  const [fontsLoaded] = useFonts({
+    NanumSquareRoundR: require("./assets/fonts/NanumSquareRoundR.ttf"),
+    NanumSquareRoundB: require("./assets/fonts/NanumSquareRoundB.ttf"),
+    NanumSquareRoundEB: require("./assets/fonts/NanumSquareRoundEB.ttf"),
+    MontserratRegular: require("./assets/fonts/Montserrat-Regular.ttf"),
+    MontserratSemiBold: require("./assets/fonts/Montserrat-SemiBold.ttf"),
+    MontserratBold: require("./assets/fonts/Montserrat-Bold.ttf"),
+    MontserratExtraBold: require("./assets/fonts/Montserrat-ExtraBold.ttf"),
+  });
+
   const [activeTab, setActiveTab] = useState("home");
   const [screen, setScreen] = useState("home");
 
@@ -1909,6 +1930,15 @@ ${result.hospital}
     return renderHomeScreen();
   };
 
+  if (!fontsLoaded) {
+    return (
+      <SafeAreaView style={styles.safeArea}>
+        <StatusBar barStyle="dark-content" backgroundColor="#F4F8FB" />
+        <View style={styles.appRoot} />
+      </SafeAreaView>
+    );
+  }
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="dark-content" backgroundColor="#F4F8FB" />
@@ -2129,6 +2159,7 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   homeMainText: {
+    fontFamily: FONT.koExtraBold,
     fontSize: 22,
     lineHeight: 36,
     fontWeight: "800",
@@ -2147,12 +2178,14 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   homeFeatureTitle: {
+    fontFamily: FONT.koExtraBold,
     fontSize: 21,
     fontWeight: "800",
     color: "#083A5A",
     marginBottom: 12,
   },
   homeFeatureText: {
+    fontFamily: FONT.koRegular,
     fontSize: 18,
     lineHeight: 32,
     color: "#164B6A",
@@ -2166,6 +2199,7 @@ const styles = StyleSheet.create({
     marginBottom: 14,
   },
   startButtonText: {
+    fontFamily: FONT.koExtraBold,
     fontSize: 23,
     fontWeight: "800",
     color: "#FFFFFF",
@@ -2185,6 +2219,7 @@ const styles = StyleSheet.create({
     marginHorizontal: 5,
   },
   quickButtonText: {
+    fontFamily: FONT.koExtraBold,
     fontSize: 17,
     fontWeight: "800",
     color: "#315B73",
@@ -2209,6 +2244,7 @@ const styles = StyleSheet.create({
     marginRight: 12,
   },
   backIconText: {
+    fontFamily: FONT.koExtraBold,
     fontSize: 30,
     fontWeight: "900",
     color: "#083A5A",
@@ -2217,11 +2253,13 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   topBarTitle: {
+    fontFamily: FONT.koExtraBold,
     fontSize: 23,
     fontWeight: "800",
     color: "#083A5A",
   },
   topBarSubtitle: {
+    fontFamily: FONT.koRegular,
     fontSize: 14,
     fontWeight: "700",
     color: "#4A7087",
@@ -2254,6 +2292,7 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   stepBadgeText: {
+    fontFamily: FONT.koExtraBold,
     fontSize: 16,
     fontWeight: "800",
     color: "#0B5D83",
@@ -2268,6 +2307,7 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   sectionTitle: {
+    fontFamily: FONT.koExtraBold,
     fontSize: 22,
     lineHeight: 34,
     fontWeight: "800",
@@ -2275,12 +2315,14 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   sectionDescription: {
+    fontFamily: FONT.koRegular,
     fontSize: 17,
     lineHeight: 30,
     color: "#315B73",
     marginBottom: 16,
   },
   textArea: {
+    fontFamily: FONT.koRegular,
     minHeight: 175,
     backgroundColor: "#F8FBFD",
     borderRadius: 22,
@@ -2301,6 +2343,7 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   voiceTitle: {
+    fontFamily: FONT.koExtraBold,
     fontSize: 19,
     lineHeight: 30,
     fontWeight: "800",
@@ -2308,6 +2351,7 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   voiceDescription: {
+    fontFamily: FONT.koRegular,
     fontSize: 16,
     lineHeight: 28,
     color: "#315B73",
@@ -2332,6 +2376,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#0B78A6",
   },
   voiceButtonText: {
+    fontFamily: FONT.koExtraBold,
     fontSize: 17,
     lineHeight: 24,
     fontWeight: "800",
@@ -2354,6 +2399,7 @@ const styles = StyleSheet.create({
     marginLeft: 6,
   },
   voiceStopButtonText: {
+    fontFamily: FONT.koExtraBold,
     fontSize: 17,
     lineHeight: 24,
     fontWeight: "800",
@@ -2373,6 +2419,7 @@ const styles = StyleSheet.create({
     marginLeft: 6,
   },
   voiceResetButtonText: {
+    fontFamily: FONT.koExtraBold,
     fontSize: 16,
     lineHeight: 24,
     fontWeight: "800",
@@ -2395,6 +2442,7 @@ const styles = StyleSheet.create({
     marginHorizontal: 5,
   },
   photoButtonText: {
+    fontFamily: FONT.koExtraBold,
     fontSize: 18,
     fontWeight: "800",
     color: "#0B5D83",
@@ -2414,11 +2462,13 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   photoPreviewTitle: {
+    fontFamily: FONT.koExtraBold,
     fontSize: 17,
     fontWeight: "800",
     color: "#083A5A",
   },
   photoRemoveText: {
+    fontFamily: FONT.koExtraBold,
     fontSize: 16,
     fontWeight: "800",
     color: "#B91C1C",
@@ -2440,6 +2490,7 @@ const styles = StyleSheet.create({
     height: "100%",
   },
   photoAnalysisText: {
+    fontFamily: FONT.koRegular,
     fontSize: 17,
     lineHeight: 30,
     color: "#083A5A",
@@ -2461,6 +2512,7 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   emptyPhotoText: {
+    fontFamily: FONT.koRegular,
     fontSize: 17,
     lineHeight: 30,
     color: "#315B73",
@@ -2477,6 +2529,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#8AA8B8",
   },
   mainButtonText: {
+    fontFamily: FONT.koExtraBold,
     fontSize: 21,
     fontWeight: "800",
     color: "#FFFFFF",
@@ -2492,6 +2545,7 @@ const styles = StyleSheet.create({
     borderColor: "#BCD7E5",
   },
   clearButtonText: {
+    fontFamily: FONT.koExtraBold,
     fontSize: 17,
     fontWeight: "800",
     color: "#315B73",
@@ -2505,6 +2559,7 @@ const styles = StyleSheet.create({
     marginBottom: 18,
   },
   summaryTitle: {
+    fontFamily: FONT.koExtraBold,
     fontSize: 21,
     lineHeight: 32,
     fontWeight: "800",
@@ -2512,6 +2567,7 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   summaryText: {
+    fontFamily: FONT.koRegular,
     fontSize: 18,
     lineHeight: 32,
     color: "#083A5A",
@@ -2525,6 +2581,7 @@ const styles = StyleSheet.create({
     borderColor: "#D8E7F0",
   },
   infoCardTitle: {
+    fontFamily: FONT.koExtraBold,
     fontSize: 21,
     lineHeight: 32,
     fontWeight: "800",
@@ -2535,6 +2592,7 @@ const styles = StyleSheet.create({
     borderBottomColor: "#EFF7FB",
   },
   infoCardText: {
+    fontFamily: FONT.koRegular,
     fontSize: 17,
     lineHeight: 31,
     color: "#17384A",
@@ -2560,6 +2618,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   familyButtonText: {
+    fontFamily: FONT.koExtraBold,
     fontSize: 17,
     fontWeight: "800",
     color: "#FFFFFF",
@@ -2575,6 +2634,7 @@ const styles = StyleSheet.create({
     marginLeft: 5,
   },
   alarmButtonText: {
+    fontFamily: FONT.koExtraBold,
     fontSize: 17,
     fontWeight: "800",
     color: "#315B73",
@@ -2588,6 +2648,7 @@ const styles = StyleSheet.create({
     borderColor: "#B7E2C5",
   },
   saveButtonText: {
+    fontFamily: FONT.koExtraBold,
     fontSize: 17,
     fontWeight: "800",
     color: "#14532D",
@@ -2601,12 +2662,14 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   draftTitle: {
+    fontFamily: FONT.koExtraBold,
     fontSize: 18,
     fontWeight: "800",
     color: "#083A5A",
     marginBottom: 8,
   },
   medicinePurposeText: {
+    fontFamily: FONT.koExtraBold,
     alignSelf: "flex-start",
     backgroundColor: "#EAF7EF",
     borderRadius: 999,
@@ -2619,6 +2682,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   draftMedicine: {
+    fontFamily: FONT.koRegular,
     fontSize: 17,
     lineHeight: 28,
     color: "#17384A",
@@ -2638,11 +2702,13 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   mealInputLabel: {
+    fontFamily: FONT.koExtraBold,
     fontSize: 17,
     fontWeight: "800",
     color: "#083A5A",
   },
   mealCurrentText: {
+    fontFamily: FONT.koRegular,
     fontSize: 16,
     fontWeight: "800",
     color: "#0B78A6",
@@ -2681,6 +2747,7 @@ const styles = StyleSheet.create({
     borderColor: "#0B78A6",
   },
   timeOptionText: {
+    fontFamily: FONT.koExtraBold,
     fontSize: 15,
     fontWeight: "800",
     color: "#315B73",
@@ -2689,6 +2756,7 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
   },
   mealInput: {
+    fontFamily: FONT.enBold,
     backgroundColor: "#F8FBFD",
     borderRadius: 18,
     borderWidth: 1.6,
@@ -2710,6 +2778,7 @@ const styles = StyleSheet.create({
     borderColor: "#D8E7F0",
   },
   planTime: {
+    fontFamily: FONT.koExtraBold,
     width: 118,
     fontSize: 20,
     fontWeight: "900",
@@ -2719,12 +2788,14 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   planTitle: {
+    fontFamily: FONT.koExtraBold,
     fontSize: 16,
     fontWeight: "800",
     color: "#083A5A",
     marginBottom: 4,
   },
   planBody: {
+    fontFamily: FONT.koRegular,
     fontSize: 16,
     lineHeight: 26,
     color: "#17384A",
@@ -2738,12 +2809,14 @@ const styles = StyleSheet.create({
     marginBottom: 14,
   },
   recordDate: {
+    fontFamily: FONT.koExtraBold,
     fontSize: 15,
     fontWeight: "800",
     color: "#0B78A6",
     marginBottom: 8,
   },
   recordTitle: {
+    fontFamily: FONT.koRegular,
     fontSize: 17,
     lineHeight: 29,
     color: "#17384A",
@@ -2761,6 +2834,7 @@ const styles = StyleSheet.create({
     marginRight: 5,
   },
   recordOpenText: {
+    fontFamily: FONT.koExtraBold,
     fontSize: 16,
     fontWeight: "800",
     color: "#FFFFFF",
@@ -2776,6 +2850,7 @@ const styles = StyleSheet.create({
     marginLeft: 5,
   },
   recordDeleteText: {
+    fontFamily: FONT.koExtraBold,
     fontSize: 16,
     fontWeight: "800",
     color: "#B91C1C",
@@ -2789,18 +2864,21 @@ const styles = StyleSheet.create({
     marginBottom: 14,
   },
   reminderTime: {
+    fontFamily: FONT.koExtraBold,
     fontSize: 24,
     fontWeight: "900",
     color: "#0B78A6",
     marginBottom: 8,
   },
   reminderTitle: {
+    fontFamily: FONT.koExtraBold,
     fontSize: 18,
     fontWeight: "800",
     color: "#083A5A",
     marginBottom: 6,
   },
   reminderBody: {
+    fontFamily: FONT.koRegular,
     fontSize: 17,
     lineHeight: 29,
     color: "#17384A",
@@ -2819,6 +2897,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   emptyStateTitle: {
+    fontFamily: FONT.koExtraBold,
     fontSize: 21,
     fontWeight: "800",
     color: "#083A5A",
@@ -2826,6 +2905,7 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   emptyStateText: {
+    fontFamily: FONT.koRegular,
     fontSize: 17,
     lineHeight: 29,
     color: "#315B73",
@@ -2840,6 +2920,7 @@ const styles = StyleSheet.create({
     marginBottom: 14,
   },
   noticeText: {
+    fontFamily: FONT.koRegular,
     fontSize: 16,
     lineHeight: 26,
     color: "#14532D",
@@ -2853,6 +2934,7 @@ const styles = StyleSheet.create({
     borderColor: "#8FC7DE",
   },
   shareNoticeText: {
+    fontFamily: FONT.koRegular,
     fontSize: 16,
     lineHeight: 28,
     color: "#083A5A",
@@ -2865,12 +2947,14 @@ const styles = StyleSheet.create({
     borderColor: "#BCD7E5",
   },
   familyMessageTitle: {
+    fontFamily: FONT.koExtraBold,
     fontSize: 21,
     fontWeight: "800",
     color: "#083A5A",
     marginBottom: 14,
   },
   familyMessageText: {
+    fontFamily: FONT.koRegular,
     fontSize: 16,
     lineHeight: 30,
     color: "#17384A",
@@ -2885,11 +2969,13 @@ const styles = StyleSheet.create({
     borderColor: "#8FC7DE",
   },
   testNotificationButtonText: {
+    fontFamily: FONT.koExtraBold,
     fontSize: 16,
     fontWeight: "800",
     color: "#0B5D83",
   },
   recordDetailText: {
+    fontFamily: FONT.koRegular,
     fontSize: 17,
     lineHeight: 30,
     color: "#17384A",
@@ -2911,6 +2997,7 @@ const styles = StyleSheet.create({
     padding: 14,
   },
   mealOpenGuide: {
+    fontFamily: FONT.koRegular,
     fontSize: 15,
     fontWeight: "800",
     color: "#0B78A6",
@@ -2932,6 +3019,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   timeSaveButtonText: {
+    fontFamily: FONT.koExtraBold,
     fontSize: 16,
     fontWeight: "800",
     color: "#FFFFFF",
@@ -2960,6 +3048,7 @@ const styles = StyleSheet.create({
     marginBottom: 2,
   },
   tabLabel: {
+    fontFamily: FONT.koExtraBold,
     fontSize: 13,
     fontWeight: "800",
     color: "#6B7C8D",
