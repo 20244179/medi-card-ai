@@ -1,127 +1,562 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
+  Alert,
+  Image,
+  KeyboardAvoidingView,
+  Platform,
   SafeAreaView,
   ScrollView,
-  View,
+  StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
-  StyleSheet,
-  KeyboardAvoidingView,
-  Platform,
-  Image,
-  Alert,
+  View,
 } from "react-native";
 
+const LOGO = require("./assets/mydoctor-logo.png");
+
+const FONT_ASSETS = {
+  nanumRegular: require("./assets/fonts/NanumSquareRoundR.ttf"),
+  nanumBold: require("./assets/fonts/NanumSquareRoundB.ttf"),
+  nanumExtraBold: require("./assets/fonts/NanumSquareRoundEB.ttf"),
+  montserratRegular: require("./assets/fonts/Montserrat-Regular.ttf"),
+  montserratSemiBold: require("./assets/fonts/Montserrat-SemiBold.ttf"),
+  montserratBold: require("./assets/fonts/Montserrat-Bold.ttf"),
+  montserratExtraBold: require("./assets/fonts/Montserrat-ExtraBold.ttf"),
+};
+
+const FONT = {
+  koRegular: "NanumSquareRoundR",
+  koBold: "NanumSquareRoundB",
+  koExtraBold: "NanumSquareRoundEB",
+  enRegular: "MontserratRegular",
+  enSemiBold: "MontserratSemiBold",
+  enBold: "MontserratBold",
+  enExtraBold: "MontserratExtraBold",
+};
+
+const STORAGE_KEYS = {
+  records: "MYDOCTOR_WEB_RECORDS",
+  reminders: "MYDOCTOR_WEB_REMINDERS",
+  mealTimes: "MYDOCTOR_WEB_MEAL_TIMES",
+};
+
+const defaultMealTimes = {
+  breakfast: null,
+  lunch: null,
+  dinner: null,
+};
+
+const defaultResult = {
+  summary:
+    "진료 내용을 입력하거나 약 봉투 사진을 넣으면, 오늘 꼭 기억해야 할 핵심을 쉽게 정리해드립니다.",
+  disease:
+    "진료 내용을 입력하고 버튼을 누르면, 환자 눈높이에 맞춘 설명이 나옵니다.",
+  medicine:
+    "처방받은 약을 언제, 어떻게 먹어야 하는지 쉽게 정리해드립니다.",
+  caution:
+    "생활에서 조심해야 할 점을 환자 눈높이에 맞게 정리해드립니다.",
+  hospital:
+    "다시 병원에 가야 하는 상황이나 재진 일정을 정리해드립니다.",
+};
+
+const medicineTypeLabels = {
+  diabetes: "당뇨병 약",
+  bloodPressure: "혈압약",
+  reflux: "위산·역류성 식도염 약",
+  unknown: "복용 약",
+};
+
+const mealLabels = {
+  breakfast: "아침 식사",
+  lunch: "점심 식사",
+  dinner: "저녁 식사",
+};
+
+const minuteOptions = ["00", "10", "20", "30", "40", "50"];
+
+function getAssetUri(asset) {
+  if (typeof asset === "string") return asset;
+  if (asset && typeof asset === "object") {
+    if (asset.uri) return asset.uri;
+    if (asset.default && asset.default.uri) return asset.default.uri;
+    if (typeof asset.default === "string") return asset.default;
+  }
+  return "";
+}
+
+function injectWebFonts() {
+  if (Platform.OS !== "web" || typeof document === "undefined") return;
+  if (document.getElementById("mydoctor-font-style")) return;
+
+  const style = document.createElement("style");
+  style.id = "mydoctor-font-style";
+
+  const fontFace = (family, asset, weight = "400") => {
+    const uri = getAssetUri(asset);
+    return `
+      @font-face {
+        font-family: '${family}';
+        src: url('${uri}') format('truetype');
+        font-weight: ${weight};
+        font-style: normal;
+        font-display: swap;
+      }
+    `;
+  };
+
+  style.innerHTML = `
+    ${fontFace(FONT.koRegular, FONT_ASSETS.nanumRegular, "400")}
+    ${fontFace(FONT.koBold, FONT_ASSETS.nanumBold, "700")}
+    ${fontFace(FONT.koExtraBold, FONT_ASSETS.nanumExtraBold, "800")}
+    ${fontFace(FONT.enRegular, FONT_ASSETS.montserratRegular, "400")}
+    ${fontFace(FONT.enSemiBold, FONT_ASSETS.montserratSemiBold, "600")}
+    ${fontFace(FONT.enBold, FONT_ASSETS.montserratBold, "700")}
+    ${fontFace(FONT.enExtraBold, FONT_ASSETS.montserratExtraBold, "800")}
+    html, body, #root {
+      margin: 0;
+      min-height: 100%;
+      background: #F4F8FB;
+      font-family: '${FONT.koBold}', '${FONT.koRegular}', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      -webkit-font-smoothing: antialiased;
+      text-rendering: optimizeLegibility;
+    }
+    * {
+      box-sizing: border-box;
+    }
+    input, textarea, button {
+      font-family: '${FONT.koBold}', '${FONT.koRegular}', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    }
+  `;
+  document.head.appendChild(style);
+}
+
+function normalizeText(text) {
+  return String(text || "").toLowerCase().replace(/\s+/g, " ").trim();
+}
+
+function removeSpaces(text) {
+  return normalizeText(text).replace(/\s/g, "");
+}
+
+function includesAny(sourceText, keywords) {
+  const normal = normalizeText(sourceText);
+  const compact = removeSpaces(sourceText);
+
+  return keywords.some((keyword) => {
+    const keyNormal = normalizeText(keyword);
+    const keyCompact = removeSpaces(keyword);
+    return normal.includes(keyNormal) || compact.includes(keyCompact);
+  });
+}
+
+function detectMedicineType(text = "") {
+  const strongDiabetes = [
+    "메트포르민",
+    "metformin",
+    "메트포르민정",
+    "metformin",
+    "metfor",
+    "글루파",
+    "글루파정",
+    "glupa",
+    "glupa850",
+    "glup",
+    "다이아미크론",
+    "다이아미크론엠알",
+    "diamicron",
+    "diamicron mr",
+    "diamicronmr",
+    "diami",
+    "디아미크론",
+    "디아미크론엠알",
+    "gliclazide",
+    "다이아벡스",
+    "diabex",
+    "인슐린",
+    "insulin",
+    "글리메피리드",
+    "glimepiride",
+    "덱시마",
+    "dexima",
+    "rosuzet",
+    "로수젯",
+  ];
+
+  const bloodPressure = [
+    "암로디핀",
+    "amlodipine",
+    "노바스크",
+    "losartan",
+    "로사르탄",
+    "valsartan",
+    "발사르탄",
+    "telmisartan",
+    "텔미사르탄",
+    "olmesartan",
+    "올메사르탄",
+  ];
+
+  const reflux = [
+    "오메프라졸",
+    "omeprazole",
+    "pantoprazole",
+    "판토프라졸",
+    "esomeprazole",
+    "에스오메프라졸",
+    "lansoprazole",
+    "란소프라졸",
+    "rabeprazole",
+    "라베프라졸",
+    "ppi",
+  ];
+
+  if (includesAny(text, strongDiabetes)) return "diabetes";
+  if (includesAny(text, bloodPressure)) return "bloodPressure";
+  if (includesAny(text, reflux)) return "reflux";
+
+  const weakDiabetes = ["당뇨병", "당뇨약", "혈당 조절", "혈당조절", "diabetes", "glucose"];
+  const weakBp = ["고혈압약", "혈압약", "hypertension", "blood pressure"];
+  const weakReflux = ["역류성 식도염", "위산 억제", "위산억제", "reflux"];
+
+  const hasMedicineContext = includesAny(text, ["약", "정", "캡슐", "복용", "처방", "tablet", "mg", "병원", "pharm"]);
+  if (includesAny(text, weakDiabetes) && hasMedicineContext) return "diabetes";
+  if (includesAny(text, weakBp) && hasMedicineContext) return "bloodPressure";
+  if (includesAny(text, weakReflux) && hasMedicineContext) return "reflux";
+
+  return "unknown";
+}
+
+function getMedicineAnalysisText(type) {
+  if (type === "diabetes") {
+    return {
+      title: "당뇨약 또는 혈당 조절 단서가 확인되었습니다.",
+      message:
+        "약마다 복용 시간이 다를 수 있습니다. 약 봉투의 복용법을 꼭 확인해주세요. 식은땀, 손떨림, 심한 어지러움은 저혈당 증상일 수 있습니다.",
+    };
+  }
+
+  if (type === "bloodPressure") {
+    return {
+      title: "혈압약 관련 단서가 확인되었습니다.",
+      message:
+        "혈압약은 매일 같은 시간에 꾸준히 드시는 것이 중요합니다. 증상이 없다고 임의로 중단하면 혈압이 다시 올라갈 수 있습니다.",
+    };
+  }
+
+  if (type === "reflux") {
+    return {
+      title: "위산 억제제 관련 단서가 확인되었습니다.",
+      message:
+        "위산을 줄이는 약은 식사 전 복용이 중요한 경우가 많습니다. 정확한 복용법은 약 봉투와 처방전을 확인해주세요.",
+    };
+  }
+
+  return {
+    title: "약 봉투 사진이 첨부되었습니다.",
+    message:
+      "약 이름과 복용 시간이 잘 보이도록 촬영된 사진이면 복약 설명에 도움이 됩니다. 진료 내용을 함께 입력하면 더 정확히 정리할 수 있습니다.",
+  };
+}
+
+function generateReminderDrafts(type) {
+  if (type === "diabetes") {
+    return [
+      {
+        id: "morning-before",
+        label: "아침 식전 30분",
+        meal: "breakfast",
+        offsetMinutes: -30,
+        medicines: ["DiAMiCRON MR", "Dexima"],
+        medicineType: "diabetes",
+      },
+      {
+        id: "morning-after",
+        label: "아침 식후 30분",
+        meal: "breakfast",
+        offsetMinutes: 30,
+        medicines: ["Rosuzet"],
+        medicineType: "diabetes",
+      },
+      {
+        id: "breakfast-dinner-after",
+        label: "아침, 저녁 식사 직후",
+        meal: "breakfastDinner",
+        offsetMinutes: 10,
+        medicines: ["GLUPA 850"],
+        medicineType: "diabetes",
+      },
+    ];
+  }
+
+  if (type === "bloodPressure") {
+    return [
+      {
+        id: "morning-bp",
+        label: "아침 식후 30분",
+        meal: "breakfast",
+        offsetMinutes: 30,
+        medicines: ["혈압약"],
+        medicineType: "bloodPressure",
+      },
+    ];
+  }
+
+  if (type === "reflux") {
+    return [
+      {
+        id: "morning-reflux",
+        label: "아침 식전 30분",
+        meal: "breakfast",
+        offsetMinutes: -30,
+        medicines: ["위산 억제제"],
+        medicineType: "reflux",
+      },
+    ];
+  }
+
+  return [];
+}
+
+function parseTime(timeText) {
+  if (!timeText) return null;
+  const [hourText, minuteText] = String(timeText).split(":");
+  const hour = Number(hourText);
+  const minute = Number(minuteText);
+  if (!Number.isFinite(hour) || !Number.isFinite(minute)) return null;
+  return { hour, minute };
+}
+
+function formatKoreanTime(timeText) {
+  const parsed = parseTime(timeText);
+  if (!parsed) return "아직 설정하지 않음";
+  const period = parsed.hour >= 12 ? "오후" : "오전";
+  const hour12 = parsed.hour % 12 === 0 ? 12 : parsed.hour % 12;
+  return `${period} ${hour12}:${String(parsed.minute).padStart(2, "0")}`;
+}
+
+function toTimeText(period, hour12, minute) {
+  let hour = Number(hour12);
+  const min = Number(minute);
+  if (period === "PM" && hour !== 12) hour += 12;
+  if (period === "AM" && hour === 12) hour = 0;
+  return `${String(hour).padStart(2, "0")}:${String(min).padStart(2, "0")}`;
+}
+
+function getTimeParts(timeText) {
+  const parsed = parseTime(timeText);
+  if (!parsed) return { period: "AM", hour12: 8, minute: "00" };
+  const period = parsed.hour >= 12 ? "PM" : "AM";
+  const hour12 = parsed.hour % 12 === 0 ? 12 : parsed.hour % 12;
+  return { period, hour12, minute: String(parsed.minute).padStart(2, "0") };
+}
+
+function addMinutesToTime(timeText, offsetMinutes) {
+  const parsed = parseTime(timeText);
+  if (!parsed) return null;
+  const date = new Date();
+  date.setHours(parsed.hour, parsed.minute, 0, 0);
+  date.setMinutes(date.getMinutes() + offsetMinutes);
+  return `${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
+}
+
+function buildReminderPlans(drafts, mealTimes) {
+  const plans = [];
+
+  drafts.forEach((draft) => {
+    const addPlan = (mealKey, suffix = "") => {
+      const baseTime = mealTimes[mealKey];
+      const timeText = addMinutesToTime(baseTime, draft.offsetMinutes);
+      if (!timeText) return;
+      plans.push({
+        id: `${draft.id}-${mealKey}`,
+        label: `${draft.label}${suffix}`,
+        timeText,
+        medicines: draft.medicines,
+        medicineType: draft.medicineType,
+        meal: mealKey,
+        offsetMinutes: draft.offsetMinutes,
+      });
+    };
+
+    if (draft.meal === "breakfastDinner") {
+      addPlan("breakfast", " · 아침");
+      addPlan("dinner", " · 저녁");
+    } else {
+      addPlan(draft.meal);
+    }
+  });
+
+  return plans;
+}
+
+function getRequiredMeals(drafts) {
+  const set = new Set();
+  drafts.forEach((draft) => {
+    if (draft.meal === "breakfastDinner") {
+      set.add("breakfast");
+      set.add("dinner");
+    } else if (draft.meal) {
+      set.add(draft.meal);
+    }
+  });
+  return Array.from(set);
+}
+
+function isMealTimesReady(drafts, mealTimes) {
+  const required = getRequiredMeals(drafts);
+  return required.every((mealKey) => Boolean(mealTimes[mealKey]));
+}
+
+function makeRecordTitle(result) {
+  const summary = result?.summary || "진료 기록";
+  return summary.length > 58 ? summary.slice(0, 58) + "..." : summary;
+}
+
 export default function App() {
+  const [activeTab, setActiveTab] = useState("home");
+  const [screen, setScreen] = useState("home");
+
   const [userInput, setUserInput] = useState("");
+  const [result, setResult] = useState(defaultResult);
   const [isLoading, setIsLoading] = useState(false);
-  const [currentTime, setCurrentTime] = useState("");
+
+  const [medicinePhotoUri, setMedicinePhotoUri] = useState("");
+  const [medicinePhotoName, setMedicinePhotoName] = useState("");
+  const [medicinePhotoAnalysis, setMedicinePhotoAnalysis] = useState("");
+  const [medicineOcrText, setMedicineOcrText] = useState("");
+  const [medicineHintType, setMedicineHintType] = useState("unknown");
+  const [ocrProgress, setOcrProgress] = useState("");
+  const [isPhotoAnalyzing, setIsPhotoAnalyzing] = useState(false);
 
   const [isListening, setIsListening] = useState(false);
   const [speechSupported, setSpeechSupported] = useState(true);
   const [voiceMessage, setVoiceMessage] = useState("");
   const recognitionRef = useRef(null);
 
-  const [medicinePhotoUri, setMedicinePhotoUri] = useState("");
-  const [medicinePhotoName, setMedicinePhotoName] = useState("");
-  const [medicinePhotoAnalysis, setMedicinePhotoAnalysis] = useState("");
-  const [medicineOcrText, setMedicineOcrText] = useState("");
-  const [medicineHintType, setMedicineHintType] = useState("");
-  const [ocrProgress, setOcrProgress] = useState("");
-  const [isPhotoAnalyzing, setIsPhotoAnalyzing] = useState(false);
-
+  const [records, setRecords] = useState([]);
+  const [reminders, setReminders] = useState([]);
+  const [mealTimes, setMealTimes] = useState(defaultMealTimes);
+  const [reminderDrafts, setReminderDrafts] = useState([]);
   const [familyMessage, setFamilyMessage] = useState("");
-  const [showFamilyMessage, setShowFamilyMessage] = useState(false);
-  const [appNotice, setAppNotice] = useState("");
-
-  const defaultResult = {
-    summary:
-      "진료 내용을 입력하면, AI가 오늘 꼭 기억해야 할 핵심을 한 줄로 정리해드립니다.",
-    disease:
-      "진료 내용을 입력하고 버튼을 누르면, 여기에 환자 눈높이에 맞춘 설명이 나옵니다.",
-    medicine:
-      "처방받은 약을 언제, 어떻게 먹어야 하는지 쉽게 정리해드립니다.",
-    caution:
-      "생활에서 조심해야 할 점을 환자 눈높이에 맞게 정리해드립니다.",
-    hospital:
-      "다시 병원에 가야 하는 상황이나 재진 일정을 정리해드립니다.",
-  };
-
-  const [result, setResult] = useState(defaultResult);
+  const [editingRecord, setEditingRecord] = useState(null);
+  const [expandedMealKey, setExpandedMealKey] = useState("");
+  const [mealDraftValues, setMealDraftValues] = useState({});
 
   useEffect(() => {
-    const updateTime = () => {
-      const now = new Date();
-      const hours = String(now.getHours()).padStart(2, "0");
-      const minutes = String(now.getMinutes()).padStart(2, "0");
-      setCurrentTime(`${hours}:${minutes}`);
-    };
-
-    updateTime();
-    const timer = setInterval(updateTime, 1000);
-
-    return () => clearInterval(timer);
+    injectWebFonts();
+    loadStoredData();
+    initializeSpeechRecognition();
   }, []);
 
   useEffect(() => {
-    if (Platform.OS !== "web") {
+    setMealDraftValues({
+      breakfast: getTimeParts(mealTimes.breakfast),
+      lunch: getTimeParts(mealTimes.lunch),
+      dinner: getTimeParts(mealTimes.dinner),
+    });
+  }, [mealTimes.breakfast, mealTimes.lunch, mealTimes.dinner]);
+
+  const saveRecords = (nextRecords) => {
+    setRecords(nextRecords);
+    try {
+      localStorage.setItem(STORAGE_KEYS.records, JSON.stringify(nextRecords));
+    } catch (error) {
+      console.log("records save error", error);
+    }
+  };
+
+  const saveReminders = (nextReminders) => {
+    setReminders(nextReminders);
+    try {
+      localStorage.setItem(STORAGE_KEYS.reminders, JSON.stringify(nextReminders));
+    } catch (error) {
+      console.log("reminders save error", error);
+    }
+  };
+
+  const saveMealTimes = (nextMealTimes) => {
+    setMealTimes(nextMealTimes);
+    try {
+      localStorage.setItem(STORAGE_KEYS.mealTimes, JSON.stringify(nextMealTimes));
+    } catch (error) {
+      console.log("meal save error", error);
+    }
+  };
+
+  const loadStoredData = () => {
+    if (Platform.OS !== "web" || typeof localStorage === "undefined") return;
+
+    try {
+      const recordText = localStorage.getItem(STORAGE_KEYS.records);
+      const reminderText = localStorage.getItem(STORAGE_KEYS.reminders);
+      const mealText = localStorage.getItem(STORAGE_KEYS.mealTimes);
+
+      if (recordText) setRecords(JSON.parse(recordText));
+      if (reminderText) setReminders(JSON.parse(reminderText));
+      if (mealText) setMealTimes({ ...defaultMealTimes, ...JSON.parse(mealText) });
+    } catch (error) {
+      console.log("localStorage load error", error);
+    }
+  };
+
+  const initializeSpeechRecognition = () => {
+    if (Platform.OS !== "web" || typeof window === "undefined") {
       setSpeechSupported(false);
-      setVoiceMessage("현재 음성인식은 웹 시연 버전에서 지원됩니다.");
       return;
     }
 
-    const SpeechRecognition =
-      window.SpeechRecognition || window.webkitSpeechRecognition;
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 
     if (!SpeechRecognition) {
       setSpeechSupported(false);
-      setVoiceMessage(
-        "이 브라우저는 음성인식을 지원하지 않습니다. Chrome 또는 Edge를 사용해주세요."
-      );
+      setVoiceMessage("이 브라우저에서는 음성 입력을 지원하지 않습니다. 진료 내용을 직접 입력해주세요.");
       return;
     }
 
     const recognition = new SpeechRecognition();
     recognition.lang = "ko-KR";
-    recognition.interimResults = false;
+    recognition.interimResults = true;
     recognition.continuous = false;
 
     recognition.onstart = () => {
       setIsListening(true);
-      setVoiceMessage("듣는 중입니다. 진료 내용을 편하게 말씀해주세요.");
+      setVoiceMessage("듣고 있어요. 진료 내용을 편하게 말씀해주세요.");
     };
 
     recognition.onresult = (event) => {
-      const transcript = event.results[0][0].transcript;
+      let finalText = "";
+      let interimText = "";
 
-      setUserInput((prev) => {
-        if (prev.trim()) {
-          return prev.trim() + " " + transcript;
+      for (let i = event.resultIndex; i < event.results.length; i += 1) {
+        const transcript = event.results[i][0].transcript;
+        if (event.results[i].isFinal) {
+          finalText += transcript;
+        } else {
+          interimText += transcript;
         }
-        return transcript;
-      });
+      }
 
-      setVoiceMessage("음성 입력이 완료되었습니다.");
+      if (interimText) {
+        setVoiceMessage(`듣고 있어요: ${interimText}`);
+      }
+
+      if (finalText.trim()) {
+        setUserInput((prev) => (prev.trim() ? `${prev.trim()} ${finalText.trim()}` : finalText.trim()));
+      }
     };
 
     recognition.onerror = () => {
-      setVoiceMessage("음성인식 중 오류가 발생했습니다. 다시 시도해주세요.");
       setIsListening(false);
+      setVoiceMessage("음성 입력이 잠시 원활하지 않습니다. 다시 눌러주세요.");
     };
 
     recognition.onend = () => {
       setIsListening(false);
+      setVoiceMessage("음성 입력이 끝났습니다.");
     };
 
     recognitionRef.current = recognition;
-  }, []);
-
-  const normalizeText = (text) => {
-    return String(text || "")
-      .toLowerCase()
-      .replace(/\s+/g, " ")
-      .trim();
   };
 
   const showPopup = (title, message) => {
@@ -129,122 +564,42 @@ export default function App() {
       window.alert(`${title}\n\n${message}`);
       return;
     }
-
     Alert.alert(title, message);
   };
 
   const isMobileBrowser = () => {
-    if (Platform.OS !== "web" || typeof navigator === "undefined") {
-      return false;
-    }
-
-    const userAgent = navigator.userAgent || navigator.vendor || "";
-    const mobilePattern =
-      /android|iphone|ipad|ipod|windows phone|blackberry|mobile/i;
-
-    return mobilePattern.test(userAgent);
+    if (Platform.OS !== "web" || typeof navigator === "undefined") return false;
+    return /android|iphone|ipad|ipod|windows phone|blackberry|mobile/i.test(
+      navigator.userAgent || navigator.vendor || ""
+    );
   };
 
-  const detectMedicineType = (ocrText, fileName = "") => {
-    const combined = normalizeText(`${ocrText} ${fileName}`);
-
-    const ppiKeywords = [
-      "오메프라졸",
-      "omeprazole",
-      "에스오메프라졸",
-      "esomeprazole",
-      "란소프라졸",
-      "lansoprazole",
-      "판토프라졸",
-      "pantoprazole",
-      "라베프라졸",
-      "rabeprazole",
-      "ppi",
-      "위산",
-      "역류",
-      "식도염",
-      "식전",
-      "공복",
-    ];
-
-    const bpKeywords = [
-      "암로디핀",
-      "amlodipine",
-      "혈압",
-      "고혈압",
-      "로사르탄",
-      "losartan",
-      "발사르탄",
-      "valsartan",
-      "텔미사르탄",
-      "telmisartan",
-      "올메사르탄",
-      "olmesartan",
-      "칸데사르탄",
-      "candesartan",
-    ];
-
-    const diabetesKeywords = [
-      "메트포르민",
-      "metformin",
-      "당뇨",
-      "혈당",
-      "인슐린",
-      "insulin",
-      "글리메피리드",
-      "glimepiride",
-      "다이아벡스",
-    ];
-
-    const hasAny = (keywords) => keywords.some((word) => combined.includes(word));
-
-    if (hasAny(ppiKeywords)) {
-      return {
-        type: "reflux",
-        title: "위산 억제제 또는 역류성 식도염 관련 약으로 추정됩니다.",
-        message:
-          "약 봉투에서 위산 억제제, 식전 복용, 역류성 식도염과 관련된 단서가 확인되었습니다. 약 봉투에 식전 복용 안내가 있다면 보통 식사 30분 전 공복 복용이 중요합니다. 단, 정확한 약 이름과 복용법은 처방전과 약 봉투를 함께 확인해야 합니다.",
-      };
-    }
-
-    if (hasAny(bpKeywords)) {
-      return {
-        type: "bloodPressure",
-        title: "혈압약 관련 약으로 추정됩니다.",
-        message:
-          "약 봉투에서 혈압약 또는 고혈압 관련 단서가 확인되었습니다. 혈압약은 증상이 없어도 매일 같은 시간에 꾸준히 복용하는 것이 중요하며, 임의로 중단하면 혈압이 다시 올라갈 수 있습니다.",
-      };
-    }
-
-    if (hasAny(diabetesKeywords)) {
-      return {
-        type: "diabetes",
-        title: "당뇨약 또는 혈당 조절 관련 약으로 추정됩니다.",
-        message:
-          "약 봉투에서 당뇨약 또는 혈당 조절 관련 단서가 확인되었습니다. 약 종류에 따라 식전·식후 복용법이 달라질 수 있으므로 약 봉투의 복용 시간을 꼭 확인해야 합니다. 식은땀, 손떨림, 심한 어지러움 같은 저혈당 증상도 주의해야 합니다.",
-      };
-    }
-
-    if (combined.length > 0) {
-      return {
-        type: "unknown",
-        title: "약 봉투의 일부 내용을 확인했습니다.",
-        message:
-          "약 봉투에서 일부 내용을 확인했지만, 현재 프로토타입의 예시 약물군과 명확히 매칭되지는 않았습니다. 복용 시간, 횟수, 주의사항은 약 봉투와 처방전을 함께 확인해주세요.",
-      };
-    }
-
-    return {
-      type: "unknown",
-      title: "약 봉투 내용을 명확히 확인하기 어렵습니다.",
-      message:
-        "사진이 흐리거나 글자가 작으면 분석이 어려울 수 있습니다. 약 봉투를 밝은 곳에서 정면으로 촬영하고, 약 이름과 복용법이 잘 보이게 다시 첨부하면 더 좋습니다.",
-    };
+  const clearInputState = () => {
+    setUserInput("");
+    setResult(defaultResult);
+    setIsLoading(false);
+    setMedicinePhotoUri("");
+    setMedicinePhotoName("");
+    setMedicinePhotoAnalysis("");
+    setMedicineOcrText("");
+    setMedicineHintType("unknown");
+    setOcrProgress("");
+    setIsPhotoAnalyzing(false);
+    setReminderDrafts([]);
+    setFamilyMessage("");
+    setEditingRecord(null);
+    setVoiceMessage("");
   };
 
-  const handleVoiceInput = () => {
+  const handleNewVisit = () => {
+    clearInputState();
+    setActiveTab("home");
+    setScreen("input");
+  };
+
+  const handleVoiceInput = (mode = "continue") => {
     if (!speechSupported || !recognitionRef.current) {
-      setVoiceMessage("현재 환경에서는 음성인식을 사용할 수 없습니다.");
+      setVoiceMessage("현재 브라우저에서는 음성 입력을 사용할 수 없습니다.");
       return;
     }
 
@@ -253,47 +608,65 @@ export default function App() {
       return;
     }
 
+    if (mode === "first") {
+      setUserInput("");
+      setVoiceMessage("새 진료 내용을 처음부터 듣겠습니다.");
+    } else {
+      setVoiceMessage("이어서 말씀하시면 기존 내용 뒤에 붙여드립니다.");
+    }
+
     try {
       recognitionRef.current.start();
     } catch (error) {
-      setVoiceMessage("음성인식을 다시 시작하려면 잠시 후 눌러주세요.");
+      setVoiceMessage("음성 입력을 다시 시작하려면 잠시 후 눌러주세요.");
     }
   };
 
-  const runMedicineOcr = async (imageUri, fileName) => {
+  const runMedicineOcr = async (imageUri) => {
     setIsPhotoAnalyzing(true);
-    setOcrProgress("약 봉투 사진을 분석하는 중입니다...");
+    setOcrProgress("약 봉투 사진을 확인하고 있습니다...");
     setMedicineOcrText("");
     setMedicinePhotoAnalysis("");
-    setMedicineHintType("");
+    setMedicineHintType("unknown");
 
     try {
       const Tesseract = await import("tesseract.js");
-
       const ocrResult = await Tesseract.recognize(imageUri, "kor+eng", {
         logger: (m) => {
           if (m.status === "recognizing text" && typeof m.progress === "number") {
-            const percent = Math.round(m.progress * 100);
-            setOcrProgress(`약 봉투 사진을 분석하는 중입니다... ${percent}%`);
+            setOcrProgress(`약 봉투 사진을 확인하고 있습니다... ${Math.round(m.progress * 100)}%`);
           }
         },
       });
 
       const extractedText = ocrResult?.data?.text || "";
-      const detected = detectMedicineType(extractedText, fileName);
+      const detectedType = detectMedicineType(extractedText);
+      const analysis = getMedicineAnalysisText(detectedType);
 
       setMedicineOcrText(extractedText.trim());
-      setMedicineHintType(detected.type);
-      setMedicinePhotoAnalysis(`${detected.title}\n${detected.message}`);
+      setMedicineHintType(detectedType);
+
+      if (detectedType !== "unknown") {
+        setMedicinePhotoAnalysis(`${analysis.title}\n${analysis.message}`);
+      } else if (extractedText.trim()) {
+        setMedicinePhotoAnalysis(
+          "사진에서 글자는 일부 확인되었지만, 약 종류를 특정하기 어렵습니다.\n약 봉투의 약 이름과 복용 시간이 잘 보이도록 다시 촬영하거나 진료 내용을 직접 입력해주세요."
+        );
+      } else {
+        setMedicinePhotoAnalysis(
+          "약 봉투 글자를 정확히 읽기 어렵습니다.\n약 이름과 복용 시간이 잘 보이도록 다시 촬영하거나, 진료 내용을 직접 입력해주세요."
+        );
+      }
+
+      setReminderDrafts(generateReminderDrafts(detectedType));
       setOcrProgress("");
     } catch (error) {
-      const detected = detectMedicineType("", fileName);
-
       setMedicineOcrText("");
-      setMedicineHintType(detected.type);
+      setMedicineHintType("unknown");
       setMedicinePhotoAnalysis(
-        `사진 분석 중 오류가 발생했습니다. 현재는 파일명과 입력 내용을 바탕으로 예시 분석을 제공합니다.\n${detected.message}`
+        "웹에서 사진 글자를 읽는 중 오류가 발생했습니다.\n약 이름이나 복용 시간을 직접 입력하면 진료 정리에 함께 반영할 수 있습니다."
       );
+      setReminderDrafts(generateReminderDrafts("unknown"));
       setOcrProgress("");
     } finally {
       setIsPhotoAnalyzing(false);
@@ -301,44 +674,36 @@ export default function App() {
   };
 
   const processMedicinePhotoFile = (file) => {
-    if (!file) {
-      return;
-    }
+    if (!file) return;
 
     const reader = new FileReader();
 
-    setMedicinePhotoName(file.name || "촬영한 약 봉투 사진");
+    setMedicinePhotoName(file.name || "약 봉투 사진");
     setMedicinePhotoAnalysis("");
     setMedicineOcrText("");
-    setMedicineHintType("");
+    setMedicineHintType("unknown");
     setOcrProgress("");
-    setAppNotice("");
+    setIsPhotoAnalyzing(true);
 
     reader.onload = () => {
       const imageDataUrl = reader.result;
       setMedicinePhotoUri(imageDataUrl);
-      runMedicineOcr(imageDataUrl, file.name || "captured_medicine_bag.jpg");
+      runMedicineOcr(imageDataUrl);
     };
 
     reader.readAsDataURL(file);
   };
 
   const openMedicinePhotoInput = (mode) => {
-    setShowFamilyMessage(false);
-    setAppNotice("");
-
     if (Platform.OS !== "web") {
-      showPopup(
-        "사진 기능 안내",
-        "약 봉투 사진 분석 기능은 현재 웹 시연 버전에서 우선 지원됩니다."
-      );
+      showPopup("사진 기능 안내", "웹 버전에서는 브라우저에서 사진을 첨부할 수 있습니다.");
       return;
     }
 
     if (mode === "camera" && !isMobileBrowser()) {
       showPopup(
-        "카메라 촬영 불가",
-        "현재 기기에서는 카메라 촬영을 사용할 수 없습니다.\n\n휴대폰에서 촬영하기를 이용하거나, 사진 선택으로 약 봉투 이미지를 첨부해주세요."
+        "촬영은 모바일에서 사용할 수 있습니다",
+        "노트북에서는 사진 선택을 이용해주세요.\n휴대폰 웹사이트 또는 모바일 앱에서는 약 봉투 촬영을 사용할 수 있습니다."
       );
       return;
     }
@@ -359,167 +724,149 @@ export default function App() {
     input.click();
   };
 
-  const handleSelectMedicinePhoto = () => {
-    openMedicinePhotoInput("gallery");
-  };
-
-  const handleCaptureMedicinePhoto = () => {
-    openMedicinePhotoInput("camera");
-  };
-
   const handleRemoveMedicinePhoto = () => {
     setMedicinePhotoUri("");
     setMedicinePhotoName("");
     setMedicinePhotoAnalysis("");
     setMedicineOcrText("");
-    setMedicineHintType("");
+    setMedicineHintType("unknown");
     setOcrProgress("");
     setIsPhotoAnalyzing(false);
-    setAppNotice("");
+    setReminderDrafts([]);
   };
 
-  const handleClear = () => {
-    setUserInput("");
-    setVoiceMessage("");
-    setMedicinePhotoUri("");
-    setMedicinePhotoName("");
-    setMedicinePhotoAnalysis("");
-    setMedicineOcrText("");
-    setMedicineHintType("");
-    setOcrProgress("");
-    setIsPhotoAnalyzing(false);
-    setFamilyMessage("");
-    setShowFamilyMessage(false);
-    setAppNotice("");
-    setResult(defaultResult);
+  const buildResultByType = (type) => {
+    if (type === "diabetes") {
+      return {
+        summary: "당뇨약 또는 혈당 조절 단서가 확인되었습니다. 약 복용 시간과 식사 시간을 함께 지키는 것이 중요합니다.",
+        disease:
+          "당뇨병은 혈액 속 포도당, 즉 혈당이 높게 유지되는 병입니다. 혈당이 오래 높으면 눈, 콩팥, 신경, 혈관에 문제가 생길 수 있어 꾸준한 관리가 필요합니다.",
+        medicine:
+          "당뇨약은 약 종류에 따라 복용 시간이 다를 수 있습니다. 식전, 식후 복용법을 약 봉투에서 꼭 확인해주세요. 식사를 거른 상태에서 약을 먹으면 저혈당이 생길 수 있습니다.",
+        caution:
+          "식사를 거르지 않고 규칙적으로 드시는 것이 중요합니다. 단 음료나 과도한 간식은 줄이고, 혈당을 기록하면 치료 조절에 도움이 됩니다.",
+        hospital:
+          "식은땀, 손떨림, 심한 어지러움, 의식이 흐려지는 증상은 저혈당일 수 있습니다. 이런 증상이 반복되거나 혈당이 너무 높게 유지되면 병원에 문의해주세요.",
+      };
+    }
+
+    if (type === "bloodPressure") {
+      return {
+        summary: "혈압약 관련 단서가 확인되었습니다. 증상이 없어도 매일 같은 시간에 복용하는 것이 중요합니다.",
+        disease:
+          "고혈압은 혈관 안의 압력이 계속 높은 상태입니다. 증상이 없어도 오래 지속되면 심장, 뇌혈관, 콩팥에 부담을 줄 수 있습니다.",
+        medicine:
+          "혈압약은 매일 같은 시간에 꾸준히 드시는 것이 중요합니다. 증상이 없다고 임의로 끊으면 혈압이 다시 올라갈 수 있습니다.",
+        caution:
+          "짠 음식은 줄이고, 규칙적인 운동과 체중 관리가 도움이 됩니다. 집에서 혈압을 재서 기록하면 진료 때 도움이 됩니다.",
+        hospital:
+          "심한 두통, 가슴통증, 숨참, 한쪽 팔다리 마비, 말이 어눌해지는 증상이 있으면 바로 진료를 받아야 합니다.",
+      };
+    }
+
+    if (type === "reflux") {
+      return {
+        summary: "위산 또는 역류성 식도염 관련 단서가 확인되었습니다. 약 복용 시간과 식습관을 함께 확인하는 것이 중요합니다.",
+        disease:
+          "역류성 식도염은 위산이나 음식물이 식도로 거꾸로 올라오는 병입니다. 가슴 쓰림이나 신물이 올라오는 증상이 생길 수 있습니다.",
+        medicine:
+          "위산을 줄이는 약은 식사 전에 복용할 때 효과가 좋은 경우가 많습니다. 정확한 복용 시간은 약 봉투와 처방전을 확인해주세요.",
+        caution:
+          "매운 음식, 카페인, 기름진 음식, 술은 피하는 것이 좋습니다. 식사 후 바로 눕지 말고, 잠자기 전에는 음식을 줄이는 것이 도움이 됩니다.",
+        hospital:
+          "증상이 계속되거나 더 심해지면 병원에 다시 방문해야 합니다. 피를 토하거나 검은 변을 보거나 삼키기 힘들면 빨리 진료를 받아야 합니다.",
+      };
+    }
+
+    if (medicinePhotoUri && !userInput.trim()) {
+      return {
+        summary: "약 봉투 사진이 첨부되었습니다. 약 이름과 복용법은 약 봉투와 처방전을 함께 확인해주세요.",
+        disease:
+          "현재는 진료 내용이 입력되지 않아 정확한 병명은 알 수 없습니다. 병명이나 증상을 함께 입력하면 더 구체적인 설명을 받을 수 있습니다.",
+        medicine:
+          medicinePhotoAnalysis || "약 봉투 사진이 첨부되었습니다. 약 이름, 용량, 복용 시간은 약 봉투와 처방전을 기준으로 확인해야 합니다.",
+        caution:
+          "사진만으로 약을 임의로 판단하거나 복용법을 바꾸면 안 됩니다. 약 이름이 헷갈리거나 복용 시간을 잊은 경우에는 약국이나 병원에 확인하는 것이 안전합니다.",
+        hospital:
+          "약을 먹은 뒤 두드러기, 호흡곤란, 심한 어지러움, 입술이나 얼굴이 붓는 증상이 생기면 즉시 진료를 받아야 합니다.",
+      };
+    }
+
+    return {
+      summary: "입력하신 진료 내용을 바탕으로 정리했습니다. 정확한 내용은 처방전과 의료진 설명을 함께 확인해주세요.",
+      disease:
+        "현재 증상과 의사 선생님의 설명을 쉽게 정리해 이해하는 것이 중요합니다. 정확한 진단명은 의료진의 설명과 처방전을 함께 확인해주세요.",
+      medicine:
+        medicinePhotoAnalysis ||
+        "약은 처방받은 용법과 용량에 맞춰 복용해야 합니다. 식전, 식후, 자기 전 등 복용 시간이 다를 수 있으므로 약 봉투나 처방전을 꼭 확인해주세요.",
+      caution:
+        "생활습관 관리나 음식 조절에 대한 설명을 들었다면 잘 지키는 것이 좋습니다. 증상이 갑자기 심해지거나 평소와 다른 증상이 생기면 병원에 문의해주세요.",
+      hospital:
+        "호흡곤란, 심한 통증, 고열, 의식 저하, 심한 알레르기 반응이 생기면 바로 병원에 문의해야 합니다. 재진 일정이 안내되었다면 꼭 지켜주세요.",
+    };
   };
 
   const handleTranslate = () => {
     if (!userInput.trim() && !medicinePhotoUri) {
-      setResult({
-        summary: "진료 내용 또는 약 봉투 사진을 먼저 입력해주세요.",
-        disease:
-          "직접 입력하거나, 음성 입력 버튼을 눌러 진료 중 들은 내용을 말씀해주시면 됩니다.",
-        medicine:
-          "약 봉투 사진을 함께 첨부하면 약 이름과 복용법 단서를 확인해 복약 설명에 반영할 수 있습니다.",
-        caution:
-          "음식, 운동, 생활습관에 대해 들은 주의사항도 함께 입력해주세요.",
-        hospital:
-          "재진 일정이나 다시 병원에 오라는 말을 들었다면 함께 적어주세요.",
-      });
-      setAppNotice("");
-      setShowFamilyMessage(false);
+      showPopup("입력 필요", "진료 내용 또는 약 봉투 사진을 먼저 넣어주세요.");
       return;
     }
 
     setIsLoading(true);
-    setAppNotice("");
-    setShowFamilyMessage(false);
 
     setTimeout(() => {
-      const text = userInput.toLowerCase();
-      const detectedText = normalizeText(`${text} ${medicineOcrText}`);
-      const hasRefluxHint =
-        detectedText.includes("역류") ||
-        detectedText.includes("속 쓰림") ||
-        detectedText.includes("속쓰림") ||
-        detectedText.includes("식도염") ||
-        detectedText.includes("위산") ||
-        medicineHintType === "reflux";
+      const finalType =
+        medicineHintType !== "unknown"
+          ? medicineHintType
+          : detectMedicineType(`${userInput} ${medicineOcrText}`);
 
-      const hasBpHint =
-        detectedText.includes("혈압") ||
-        detectedText.includes("고혈압") ||
-        detectedText.includes("암로디핀") ||
-        medicineHintType === "bloodPressure";
-
-      const hasDiabetesHint =
-        detectedText.includes("당뇨") ||
-        detectedText.includes("혈당") ||
-        detectedText.includes("인슐린") ||
-        medicineHintType === "diabetes";
-
-      if (hasRefluxHint) {
-        setResult({
-          summary:
-            "역류성 식도염 또는 위산 관련 약으로 보이며, 위산 억제제는 식전 30분 복용 여부를 약 봉투에서 확인하는 것이 중요합니다.",
-          disease:
-            "역류성 식도염은 위에 있는 음식물이나 위산이 식도로 거꾸로 올라와서 가슴이 쓰리거나 신물이 올라오는 병이에요. 진료 내용이나 약 봉투에서 위산 억제제 관련 단서가 확인되었습니다.",
-          medicine:
-            "약 봉투 사진에서 위산 억제제 또는 식전 복용과 관련된 단서가 확인되었습니다. PPI 계열 약은 보통 식사 30분 전 공복에 복용할 때 효과가 좋습니다. 다만 정확한 복용 시간은 약 봉투와 처방전을 우선 확인해주세요.",
-          caution:
-            "매운 음식, 카페인(커피·콜라), 기름진 음식, 술은 피해주세요. 식사 후 2시간 동안은 눕지 마시고, 잠자기 3시간 전에는 음식을 드시지 않는 것이 좋아요.",
-          hospital:
-            "한 달 뒤에도 증상이 계속되거나 더 심해지면 병원에 다시 방문해야 해요. 피를 토하거나, 검은 변을 보거나, 삼키기 힘든 증상이 생기면 예약일까지 기다리지 말고 빨리 진료를 받는 것이 좋아요.",
-        });
-      } else if (hasBpHint) {
-        setResult({
-          summary:
-            "혈압약 관련 단서가 확인되었으며, 증상이 없어도 매일 같은 시간에 꾸준히 복용하는 것이 중요합니다.",
-          disease:
-            "고혈압은 혈관 안의 압력이 계속 높은 상태예요. 당장 증상이 없더라도 오래 지속되면 심장, 뇌혈관, 콩팥에 부담을 줄 수 있어서 꾸준한 관리가 중요해요.",
-          medicine:
-            "약 봉투 사진에서 혈압약 관련 단서가 확인되었습니다. 혈압약은 매일 같은 시간에 꾸준히 드시는 것이 중요해요. 증상이 없다고 임의로 끊으면 혈압이 다시 올라갈 수 있습니다.",
-          caution:
-            "짠 음식은 줄이고, 규칙적인 운동과 체중 관리가 도움이 돼요. 집에서 혈압을 재서 기록하면 진료 때 도움이 됩니다.",
-          hospital:
-            "심한 두통, 가슴통증, 숨참, 한쪽 팔다리 마비, 말이 어눌해지는 증상이 있으면 바로 진료를 받아야 해요. 혈압이 계속 높게 나오면 예약일 전이라도 병원에 문의해주세요.",
-        });
-      } else if (hasDiabetesHint) {
-        setResult({
-          summary:
-            "당뇨약 또는 혈당 조절 관련 단서가 확인되었으며, 약 복용 시간과 식사 시간을 함께 지키는 것이 중요합니다.",
-          disease:
-            "당뇨병은 혈액 속 포도당, 즉 혈당이 높게 유지되는 병이에요. 혈당이 오래 높으면 눈, 콩팥, 신경, 혈관에 문제가 생길 수 있어서 꾸준한 관리가 필요해요.",
-          medicine:
-            "약 봉투 사진에서 당뇨약 또는 혈당 조절 관련 단서가 확인되었습니다. 당뇨약은 약 종류에 따라 식전·식후 복용법이 다를 수 있으므로 약 봉투의 복용 시간을 꼭 확인해주세요.",
-          caution:
-            "식사를 거르지 않고 규칙적으로 드시는 것이 중요해요. 단 음료나 과도한 간식은 줄이고, 혈당을 기록하면 치료 조절에 도움이 됩니다.",
-          hospital:
-            "식은땀, 손떨림, 심한 어지러움, 의식이 흐려지는 증상은 저혈당일 수 있어요. 이런 증상이 반복되거나 혈당이 너무 높게 유지되면 병원에 문의해야 해요.",
-        });
-      } else if (medicinePhotoUri && !userInput.trim()) {
-        setResult({
-          summary:
-            "약 봉투 사진이 첨부되었습니다. 약 이름과 복용법 단서를 확인하려고 시도했습니다.",
-          disease:
-            "현재는 진료 내용이 입력되지 않아 정확한 병명은 알 수 없습니다. 병명이나 증상을 함께 입력하면 더 구체적인 설명을 받을 수 있습니다.",
-          medicine:
-            medicinePhotoAnalysis ||
-            "약 봉투 사진이 첨부되었습니다. 약 봉투의 약 이름, 용량, 복용 시간을 확인해 복약 설명에 반영할 수 있습니다.",
-          caution:
-            "사진만으로 약을 임의로 판단하거나 복용법을 바꾸면 안 됩니다. 약 이름이 헷갈리거나 복용 시간을 잊은 경우에는 약국이나 병원에 확인하는 것이 안전합니다.",
-          hospital:
-            "약을 먹은 뒤 두드러기, 호흡곤란, 심한 어지러움, 입술이나 얼굴이 붓는 증상이 생기면 즉시 진료를 받아야 합니다. 약을 잘못 먹었다고 생각되면 병원이나 약국에 문의해주세요.",
-        });
-      } else {
-        setResult({
-          summary:
-            "입력하신 진료 내용과 약 봉투 사진을 바탕으로, 정확한 진단명·복약법·주의사항은 처방전과 의료진 설명을 함께 확인하는 것이 중요합니다.",
-          disease:
-            "입력하신 진료 내용을 바탕으로 보면, 현재 증상과 의사 선생님의 설명을 쉽게 정리해 이해하는 것이 중요해요. 정확한 진단명은 의료진의 설명과 처방전을 함께 확인해야 해요.",
-          medicine:
-            medicinePhotoUri
-              ? `약 봉투 사진이 함께 첨부되었습니다. ${medicinePhotoAnalysis || "약 봉투의 약 이름과 복용 시간을 확인한 뒤 처방받은 용법과 용량에 맞춰 복용해야 합니다."}`
-              : "약은 처방받은 용법과 용량에 맞춰 복용해야 해요. 식전, 식후, 자기 전 등 복용 시간이 다를 수 있으므로 약 봉투나 처방전을 꼭 확인해주세요. 약을 임의로 끊거나 두 배로 먹는 것은 피해야 해요.",
-          caution:
-            "생활습관 관리나 음식 조절에 대한 설명을 들었다면 잘 지키는 것이 좋아요. 증상이 갑자기 심해지거나 평소와 다른 증상이 생기면 병원에 문의해주세요.",
-          hospital:
-            "호흡곤란, 심한 통증, 고열, 의식 저하, 심한 알레르기 반응이 생기면 바로 병원에 문의해야 해요. 재진 일정이 안내되었다면 꼭 지키는 것이 좋아요.",
-        });
-      }
-
+      setResult(buildResultByType(finalType));
+      setReminderDrafts(generateReminderDrafts(finalType));
       setIsLoading(false);
-    }, 1200);
+      setActiveTab("home");
+      setScreen("result");
+    }, 550);
   };
 
-  const handleNotifyFamily = async () => {
-    const photoLine =
-      medicinePhotoAnalysis || medicineOcrText
-        ? `\n첨부 약 봉투 참고:\n${medicinePhotoAnalysis || ""}\n`
-        : "";
+  const saveCurrentRecord = () => {
+    const newRecord = {
+      id: Date.now().toString(),
+      createdAt: new Date().toISOString(),
+      input: userInput,
+      result,
+      medicinePhotoUri,
+      medicinePhotoName,
+      medicinePhotoAnalysis,
+      medicineOcrText,
+      medicineHintType,
+    };
 
-    const message = `[진료 내용 요약]
+    saveRecords([newRecord, ...records]);
+    showPopup("저장 완료", "진료 기록이 저장되었습니다.");
+  };
+
+  const openRecord = (record) => {
+    setEditingRecord(record);
+    setUserInput(record.input || "");
+    setResult(record.result || defaultResult);
+    setMedicinePhotoUri(record.medicinePhotoUri || "");
+    setMedicinePhotoName(record.medicinePhotoName || "");
+    setMedicinePhotoAnalysis(record.medicinePhotoAnalysis || "");
+    setMedicineOcrText(record.medicineOcrText || "");
+    setMedicineHintType(record.medicineHintType || "unknown");
+    setReminderDrafts(generateReminderDrafts(record.medicineHintType || "unknown"));
+    setActiveTab("home");
+    setScreen("result");
+  };
+
+  const deleteRecord = (recordId) => {
+    const ok = Platform.OS === "web" ? window.confirm("이 진료 기록을 삭제할까요?") : true;
+    if (!ok) return;
+    saveRecords(records.filter((item) => item.id !== recordId));
+  };
+
+  const buildFamilyMessage = () => {
+    return `[진료 내용 요약]
 
 오늘의 핵심:
 ${result.summary}
@@ -535,836 +882,1442 @@ ${result.caution}
 
 4. 언제 다시 병원에 가야 하나요?
 ${result.hospital}
-${photoLine}
-※ 이 내용은 진료 내용을 쉽게 정리한 보조 설명이며, 정확한 내용은 처방전과 의료진 설명을 함께 확인해주세요.`;
 
+※ 이 내용은 진료 내용을 쉽게 정리한 보조 설명이며, 정확한 내용은 처방전과 의료진 설명을 함께 확인해주세요.`;
+  };
+
+  const handleNotifyFamily = async () => {
+    const message = buildFamilyMessage();
     setFamilyMessage(message);
-    setShowFamilyMessage(true);
+    setScreen("share");
+    setActiveTab("home");
 
     try {
       if (Platform.OS === "web" && navigator.share) {
-        await navigator.share({
-          title: "진료 내용 요약",
-          text: message,
-        });
-        setAppNotice("가족에게 공유할 수 있는 창을 열었습니다.");
-        return;
-      }
-
-      if (Platform.OS === "web" && navigator.clipboard) {
+        await navigator.share({ title: "진료 내용 요약", text: message });
+      } else if (Platform.OS === "web" && navigator.clipboard) {
         await navigator.clipboard.writeText(message);
-        setAppNotice("보호자에게 보낼 요약문이 클립보드에 복사되었습니다.");
-        return;
+        showPopup("복사 완료", "보호자에게 보낼 요약문이 복사되었습니다.");
       }
-
-      setAppNotice("아래 보호자용 요약문을 복사해 가족에게 전달해주세요.");
     } catch (error) {
-      setAppNotice("아래 보호자용 요약문을 복사해 가족에게 전달해주세요.");
+      console.log("share error", error);
     }
   };
 
-  const handleMedicineAlarm = () => {
-    setShowFamilyMessage(false);
-    setFamilyMessage("");
-    setAppNotice(
-      "약 알림 설정 기능은 추후 구현 예정입니다. 현재는 버튼 UI만 먼저 추가했습니다."
+  const saveMealTimeFromDraft = (mealKey) => {
+    const draft = mealDraftValues[mealKey] || getTimeParts(mealTimes[mealKey]);
+    const nextMealTimes = {
+      ...mealTimes,
+      [mealKey]: toTimeText(draft.period, draft.hour12, draft.minute),
+    };
+    saveMealTimes(nextMealTimes);
+    rescheduleRemindersWithMealTimes(nextMealTimes);
+    setExpandedMealKey("");
+  };
+
+  const rescheduleRemindersWithMealTimes = (nextMealTimes) => {
+    const nextReminders = reminders.map((item) => {
+      const timeText = addMinutesToTime(nextMealTimes[item.meal], item.offsetMinutes) || item.timeText;
+      return { ...item, timeText };
+    });
+    saveReminders(nextReminders);
+  };
+
+  const saveReminderPlans = () => {
+    if (!isMealTimesReady(reminderDrafts, mealTimes)) {
+      showPopup(
+        "식사 시간이 필요합니다",
+        "약 알림 시간을 계산하려면 평소 식사 시간을 먼저 알려주세요.\n아래에서 아침, 점심, 저녁 식사 시간을 설정한 뒤 다시 저장해주세요."
+      );
+      return;
+    }
+
+    const plans = buildReminderPlans(reminderDrafts, mealTimes).map((plan, index) => ({
+      ...plan,
+      id: `web-reminder-${Date.now()}-${index}`,
+      createdAt: new Date().toISOString(),
+    }));
+
+    saveReminders([...plans, ...reminders]);
+    showPopup(
+      "알림 저장 완료",
+      "웹에서는 복용 시간을 저장하고 확인할 수 있습니다.\n실제 푸시 알림은 모바일 앱에서 사용할 수 있습니다."
     );
+    setScreen("result");
+    setActiveTab("home");
   };
 
-  const handleCloseFamilyMessage = () => {
-    setShowFamilyMessage(false);
-    setFamilyMessage("");
-    setAppNotice("");
+  const deleteReminder = (id) => {
+    const ok = Platform.OS === "web" ? window.confirm("이 약 알림을 삭제할까요?") : true;
+    if (!ok) return;
+    saveReminders(reminders.filter((item) => item.id !== id));
   };
 
-  const appContent = (
-    <KeyboardAvoidingView
-      style={styles.keyboardView}
-      behavior={Platform.OS === "ios" ? "padding" : undefined}
-    >
-      <ScrollView
-        contentContainerStyle={styles.container}
-        showsVerticalScrollIndicator={false}
-      >
-        <View style={styles.header}>
-          <Text style={styles.title}>진료 내용 쉬운 말 번역기 🩺</Text>
-          <Text style={styles.subtitle}>
-            진료실에서 들은 내용을 말하거나 입력하면{"\n"}
-            환자 눈높이에 맞게 카드로 정리해드립니다.
+  const openReminderSetup = () => {
+    const finalType =
+      medicineHintType !== "unknown" ? medicineHintType : detectMedicineType(`${userInput} ${medicineOcrText}`);
+    const drafts = generateReminderDrafts(finalType);
+
+    if (!drafts.length) {
+      showPopup(
+        "약 종류를 확인하기 어렵습니다",
+        "약 알림을 만들려면 약 이름이나 복용 시간이 필요합니다. 약 봉투 글자가 잘 보이도록 다시 촬영하거나, 진료 내용에 약 이름을 직접 입력해주세요."
+      );
+      return;
+    }
+
+    setReminderDrafts(drafts);
+    setScreen("reminderSetup");
+    setActiveTab("home");
+  };
+
+  const formatDate = (iso) => {
+    const date = new Date(iso);
+    if (Number.isNaN(date.getTime())) return "";
+    return `${date.getFullYear()}.${String(date.getMonth() + 1).padStart(2, "0")}.${String(date.getDate()).padStart(2, "0")}`;
+  };
+
+  const renderTopBar = (title, backTarget) => {
+    return (
+      <View style={styles.topBar}>
+        <TouchableOpacity
+          style={styles.backIconButton}
+          onPress={() => {
+            if (backTarget === "tab-home") {
+              setActiveTab("home");
+              setScreen("home");
+            } else {
+              setScreen(backTarget || "home");
+            }
+          }}
+        >
+          <Text style={styles.backIconText}>←</Text>
+        </TouchableOpacity>
+
+        <View style={styles.topBarTitleBox}>
+          <Text style={styles.topBarTitle} numberOfLines={1}>
+            {title}
+          </Text>
+          <Text style={styles.topBarSubtitle} numberOfLines={1}>
+            MyDoctor Web
           </Text>
         </View>
 
-        <View style={styles.inputBox}>
-          <Text style={styles.label}>환자 입력</Text>
+        <TouchableOpacity style={styles.logoMini} onPress={() => {
+          clearInputState();
+          setActiveTab("home");
+          setScreen("home");
+        }}>
+          <Image source={LOGO} style={styles.logoMiniImage} resizeMode="contain" />
+        </TouchableOpacity>
+      </View>
+    );
+  };
 
-          <TextInput
-            style={styles.textArea}
-            multiline
-            textAlignVertical="top"
-            value={userInput}
-            onChangeText={setUserInput}
-            placeholder="의사 선생님께 들은 내용을 편하게 적어주세요."
-            placeholderTextColor="#9CA3AF"
-          />
+  const renderBottomTabs = () => {
+    const tabs = [
+      { key: "home", label: "홈", icon: "🏠" },
+      { key: "records", label: "기록", icon: "📋" },
+      { key: "reminders", label: "약 알림", icon: "💊" },
+      { key: "settings", label: "설정", icon: "⚙️" },
+    ];
 
-          <View style={styles.subButtonRow}>
+    return (
+      <View style={styles.bottomTabs}>
+        {tabs.map((tab) => {
+          const focused = activeTab === tab.key;
+          return (
             <TouchableOpacity
-              style={[
-                styles.voiceButtonHalf,
-                isListening && styles.voiceButtonActive,
-              ]}
-              onPress={handleVoiceInput}
+              key={tab.key}
+              style={[styles.tabButton, focused && styles.tabButtonActive]}
+              onPress={() => {
+                setActiveTab(tab.key);
+                setScreen(tab.key);
+              }}
             >
-              <Text style={styles.voiceButtonText}>
-                {isListening ? "🔴 듣는 중" : "🎤 음성 입력"}
-              </Text>
+              <Text style={styles.tabIcon}>{tab.icon}</Text>
+              <Text style={[styles.tabLabel, focused && styles.tabLabelActive]}>{tab.label}</Text>
             </TouchableOpacity>
+          );
+        })}
+      </View>
+    );
+  };
 
-            <TouchableOpacity style={styles.clearButtonHalf} onPress={handleClear}>
-              <Text style={styles.clearButtonText}>입력 지우기</Text>
-            </TouchableOpacity>
+  const renderHomeScreen = () => {
+    return (
+      <View style={styles.appScreen}>
+        <ScrollView contentContainerStyle={styles.homeWrap}>
+          <Image source={LOGO} style={styles.homeLogoImage} resizeMode="contain" />
+
+          <Text style={styles.homeMainText}>
+            진료실에서 들은 어려운 말을{"\n"}쉽게 정리해드려요
+          </Text>
+
+          <View style={styles.homeFeatureBox}>
+            <Text style={styles.homeFeatureTitle}>이 앱으로 할 수 있는 일</Text>
+            <Text style={styles.homeFeatureText}>✓ 어려운 진료 내용을 쉽게 보기</Text>
+            <Text style={styles.homeFeatureText}>✓ 가족에게 요약문 보내기</Text>
+            <Text style={styles.homeFeatureText}>✓ 약 알림 시간 설정하기</Text>
+            <Text style={styles.homeFeatureText}>✓ 진료 기록 다시 확인하기</Text>
           </View>
 
-          {voiceMessage ? (
-            <Text style={styles.voiceMessage}>{voiceMessage}</Text>
-          ) : null}
+          <TouchableOpacity style={styles.startButton} onPress={handleNewVisit}>
+            <Text style={styles.startButtonText}>새 진료 정리하기</Text>
+          </TouchableOpacity>
 
-          <Text style={styles.photoGuideText}>약 봉투가 있다면 함께 첨부해주세요.</Text>
-
-          <View style={styles.photoActionRow}>
+          <View style={styles.quickRow}>
             <TouchableOpacity
-              style={styles.photoSelectButton}
-              onPress={handleSelectMedicinePhoto}
+              style={styles.quickButton}
+              onPress={() => {
+                setActiveTab("records");
+                setScreen("records");
+              }}
             >
-              <Text style={styles.photoButtonText}>🖼️ 사진 선택</Text>
+              <Text style={styles.quickButtonText}>기록 보기</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={styles.photoCaptureButton}
-              onPress={handleCaptureMedicinePhoto}
+              style={styles.quickButton}
+              onPress={() => {
+                setActiveTab("reminders");
+                setScreen("reminders");
+              }}
             >
-              <Text style={styles.photoButtonText}>📷 촬영하기</Text>
+              <Text style={styles.quickButtonText}>약 알림 보기</Text>
             </TouchableOpacity>
           </View>
+        </ScrollView>
+      </View>
+    );
+  };
 
-          {medicinePhotoUri ? (
-            <View style={styles.photoPreviewBox}>
-              <View style={styles.photoPreviewHeader}>
-                <Text style={styles.photoPreviewTitle}>첨부된 약 봉투 사진</Text>
-                <TouchableOpacity onPress={handleRemoveMedicinePhoto}>
-                  <Text style={styles.photoRemoveText}>삭제</Text>
+  const renderInputScreen = () => {
+    return (
+      <View style={styles.appScreen}>
+        {renderTopBar("진료 내용 입력", "home")}
+        <ScrollView contentContainerStyle={styles.screenBody}>
+          <View style={styles.sectionCard}>
+            <Text style={styles.sectionTitle}>진료 내용을 적어주세요</Text>
+            <Text style={styles.sectionDescription}>
+              병원에서 들은 말이나 약 이름을 짧게 적어도 됩니다.
+            </Text>
+
+            <TextInput
+              style={styles.textArea}
+              multiline
+              textAlignVertical="top"
+              value={userInput}
+              onChangeText={setUserInput}
+              placeholder="예: 당뇨 때문에 병원에 갔고 약을 받았어요. 식후에 먹으라고 하셨어요."
+              placeholderTextColor="#6B7C8D"
+            />
+
+            <View style={styles.voiceButtonColumn}>
+              <View style={styles.photoButtonRow}>
+                <TouchableOpacity
+                  style={[styles.photoButton, isListening && styles.listeningButton]}
+                  onPress={() => handleVoiceInput("first")}
+                >
+                  <Text style={styles.photoButtonText}>{isListening ? "🔴 듣고 있어요" : "🎤 처음 말하기"}</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.photoButton, isListening && styles.listeningButton]}
+                  onPress={() => handleVoiceInput("continue")}
+                >
+                  <Text style={styles.photoButtonText}>➕ 이어 말하기</Text>
                 </TouchableOpacity>
               </View>
 
-              <Image
-                source={{ uri: medicinePhotoUri }}
-                style={styles.medicineImage}
-                resizeMode="cover"
-              />
+              <TouchableOpacity style={styles.clearButton} onPress={clearInputState}>
+                <Text style={styles.clearButtonText}>입력 지우기</Text>
+              </TouchableOpacity>
+            </View>
 
-              {medicinePhotoName ? (
-                <Text style={styles.photoFileName}>{medicinePhotoName}</Text>
-              ) : null}
+            {voiceMessage ? <Text style={styles.voiceMessage}>{voiceMessage}</Text> : null}
+          </View>
 
-              {isPhotoAnalyzing || ocrProgress ? (
-                <Text style={styles.photoAnalysisText}>
-                  {ocrProgress || "약 봉투 사진을 분석하는 중입니다..."}
-                </Text>
-              ) : null}
+          <View style={styles.sectionCard}>
+            <Text style={styles.sectionTitle}>약 봉투 사진을 넣어주세요</Text>
+            <Text style={styles.sectionDescription}>
+              모바일 웹에서는 촬영할 수 있고, 노트북에서는 사진 선택을 이용할 수 있습니다.
+            </Text>
 
-              {medicinePhotoAnalysis ? (
-                <Text style={styles.photoAnalysisText}>
-                  {medicinePhotoAnalysis}
-                </Text>
+            <View style={styles.photoButtonRow}>
+              <TouchableOpacity style={styles.photoButton} onPress={() => openMedicinePhotoInput("gallery")}>
+                <Text style={styles.photoButtonText}>🖼️ 사진 선택</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.photoButton} onPress={() => openMedicinePhotoInput("camera")}>
+                <Text style={styles.photoButtonText}>📷 촬영하기</Text>
+              </TouchableOpacity>
+            </View>
+
+            {medicinePhotoUri ? (
+              <View style={styles.photoPreviewBox}>
+                <View style={styles.photoPreviewHeader}>
+                  <Text style={styles.photoPreviewTitle}>첨부된 약 봉투 사진</Text>
+                  <TouchableOpacity onPress={handleRemoveMedicinePhoto}>
+                    <Text style={styles.photoRemoveText}>삭제</Text>
+                  </TouchableOpacity>
+                </View>
+
+                <View style={styles.medicineImageFrame}>
+                  <Image source={{ uri: medicinePhotoUri }} style={styles.medicineImage} resizeMode="contain" />
+                </View>
+
+                {isPhotoAnalyzing || ocrProgress ? (
+                  <Text style={styles.photoAnalysisText}>{ocrProgress || "약 봉투 사진을 확인하고 있습니다..."}</Text>
+                ) : medicinePhotoAnalysis ? (
+                  <Text style={styles.photoAnalysisText}>{medicinePhotoAnalysis}</Text>
+                ) : null}
+              </View>
+            ) : (
+              <View style={styles.emptyPhotoBox}>
+                <Text style={styles.emptyPhotoIcon}>📄</Text>
+                <Text style={styles.emptyPhotoText}>약 봉투 사진을 넣으면{"\n"}진료 설명에 함께 반영됩니다.</Text>
+              </View>
+            )}
+          </View>
+
+          <TouchableOpacity style={[styles.mainButton, isLoading && styles.loadingButton]} onPress={handleTranslate}>
+            <Text style={styles.mainButtonText}>{isLoading ? "진료 내용을 정리하고 있습니다" : "AI로 쉽게 정리하기"}</Text>
+          </TouchableOpacity>
+        </ScrollView>
+      </View>
+    );
+  };
+
+  const renderResultScreen = () => {
+    return (
+      <View style={styles.appScreen}>
+        {renderTopBar("쉬운 설명 카드", "input")}
+        <ScrollView contentContainerStyle={styles.screenBody}>
+          {editingRecord ? (
+            <View style={styles.noticeBox}>
+              <Text style={styles.noticeText}>저장된 진료 기록을 다시 보고 있습니다.</Text>
+            </View>
+          ) : null}
+
+          {editingRecord ? (
+            <View style={styles.sectionCard}>
+              <Text style={styles.sectionTitle}>당시 입력한 내용</Text>
+              <Text style={styles.sectionDescription}>{editingRecord.input || "입력 내용이 없습니다."}</Text>
+              {editingRecord.medicinePhotoUri ? (
+                <View style={styles.medicineImageFrame}>
+                  <Image source={{ uri: editingRecord.medicinePhotoUri }} style={styles.medicineImage} resizeMode="contain" />
+                </View>
               ) : null}
             </View>
           ) : null}
 
-          <TouchableOpacity
-            style={[styles.mainButton, isLoading && styles.loadingButton]}
-            onPress={handleTranslate}
-            disabled={isLoading}
-          >
-            <Text style={styles.mainButtonText}>
-              {isLoading
-                ? "AI가 쉽게 정리하는 중... ⏳"
-                : "AI로 쉽게 정리하기 ✨"}
-            </Text>
-          </TouchableOpacity>
-        </View>
-
-        <View style={styles.summaryBox}>
-          <Text style={styles.summaryTitle}>오늘의 핵심 한 줄</Text>
-          <Text style={styles.summaryText}>{result.summary}</Text>
-        </View>
-
-        <View style={styles.resultSection}>
-          <InfoCard
-            icon="📋"
-            title="카드 1. 무슨 병인가요?"
-            text={result.disease}
-          />
-          <InfoCard
-            icon="💊"
-            title="카드 2. 약은 어떻게 먹어야 하나요?"
-            text={result.medicine}
-          />
-          <InfoCard
-            icon="⚠️"
-            title="카드 3. 무엇을 조심해야 하나요?"
-            text={result.caution}
-          />
-          <InfoCard
-            icon="🏥"
-            title="카드 4. 언제 다시 병원에 가야 하나요?"
-            text={result.hospital}
-          />
-        </View>
-
-        <View style={styles.actionSection}>
-          <TouchableOpacity style={styles.familyButton} onPress={handleNotifyFamily}>
-            <Text style={styles.familyButtonText}>👨‍👩‍👧 가족에게 알리기</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.alarmButton} onPress={handleMedicineAlarm}>
-            <Text style={styles.alarmButtonText}>⏰ 약 알림 설정</Text>
-          </TouchableOpacity>
-        </View>
-
-        {appNotice ? (
-          <View style={styles.appNoticeBox}>
-            <Text style={styles.appNoticeText}>{appNotice}</Text>
+          <View style={styles.summaryBox}>
+            <Text style={styles.summaryTitle}>💡 오늘 꼭 기억할 내용</Text>
+            <Text style={styles.summaryText}>{result.summary}</Text>
           </View>
-        ) : null}
 
-        {showFamilyMessage ? (
-          <View style={styles.familyMessageBox}>
-            <Text style={styles.familyMessageTitle}>보호자용 요약문</Text>
-            <Text style={styles.familyMessageText}>{familyMessage}</Text>
+          <InfoCard icon="📋" title="무슨 병인가요?" text={result.disease} />
+          <InfoCard icon="💊" title="약은 어떻게 먹나요?" text={result.medicine} />
+          <InfoCard icon="⚠️" title="무엇을 조심하나요?" text={result.caution} />
+          <InfoCard icon="🏥" title="언제 병원에 다시 가나요?" text={result.hospital} />
 
-            <TouchableOpacity
-              style={styles.closeFamilyButton}
-              onPress={handleCloseFamilyMessage}
-            >
-              <Text style={styles.closeFamilyButtonText}>요약문 닫기</Text>
+          <View style={styles.actionPanel}>
+            <TouchableOpacity style={styles.familyButton} onPress={handleNotifyFamily}>
+              <Text style={styles.familyButtonText}>가족에게 알리기</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.alarmButton} onPress={openReminderSetup}>
+              <Text style={styles.alarmButtonText}>약 알림 설정</Text>
+            </TouchableOpacity>
+          </View>
+
+          <TouchableOpacity style={styles.saveButton} onPress={saveCurrentRecord}>
+            <Text style={styles.saveButtonText}>진료 기록 저장하기</Text>
+          </TouchableOpacity>
+        </ScrollView>
+      </View>
+    );
+  };
+
+  const renderMealEditor = (mealKey) => {
+    const draft = mealDraftValues[mealKey] || getTimeParts(mealTimes[mealKey]);
+
+    return (
+      <View style={styles.mealEditorBox}>
+        <TouchableOpacity
+          style={styles.mealToggleButton}
+          onPress={() => setExpandedMealKey(expandedMealKey === mealKey ? "" : mealKey)}
+        >
+          <View>
+            <Text style={styles.mealInputLabel}>{mealLabels[mealKey]}</Text>
+            <Text style={styles.mealCurrentText}>{formatKoreanTime(mealTimes[mealKey])}</Text>
+          </View>
+          <Text style={styles.mealToggleText}>{expandedMealKey === mealKey ? "접기" : "변경"}</Text>
+        </TouchableOpacity>
+
+        {expandedMealKey === mealKey ? (
+          <View style={styles.timePickerPanel}>
+            <View style={styles.segmentRow}>
+              {[
+                ["AM", "오전"],
+                ["PM", "오후"],
+              ].map(([value, label]) => (
+                <TouchableOpacity
+                  key={value}
+                  style={[styles.segmentButton, draft.period === value && styles.segmentButtonActive]}
+                  onPress={() =>
+                    setMealDraftValues({
+                      ...mealDraftValues,
+                      [mealKey]: { ...draft, period: value },
+                    })
+                  }
+                >
+                  <Text style={[styles.segmentButtonText, draft.period === value && styles.segmentButtonTextActive]}>
+                    {label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            <Text style={styles.timePickerLabel}>시간</Text>
+            <View style={styles.optionGrid}>
+              {Array.from({ length: 12 }, (_, i) => i + 1).map((hour) => (
+                <TouchableOpacity
+                  key={hour}
+                  style={[styles.timeOption, draft.hour12 === hour && styles.timeOptionActive]}
+                  onPress={() =>
+                    setMealDraftValues({
+                      ...mealDraftValues,
+                      [mealKey]: { ...draft, hour12: hour },
+                    })
+                  }
+                >
+                  <Text style={[styles.timeOptionText, draft.hour12 === hour && styles.timeOptionTextActive]}>
+                    {hour}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            <Text style={styles.timePickerLabel}>분</Text>
+            <View style={styles.optionGrid}>
+              {minuteOptions.map((minute) => (
+                <TouchableOpacity
+                  key={minute}
+                  style={[styles.timeOption, draft.minute === minute && styles.timeOptionActive]}
+                  onPress={() =>
+                    setMealDraftValues({
+                      ...mealDraftValues,
+                      [mealKey]: { ...draft, minute },
+                    })
+                  }
+                >
+                  <Text style={[styles.timeOptionText, draft.minute === minute && styles.timeOptionTextActive]}>
+                    {minute}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            <TouchableOpacity style={styles.smallSaveButton} onPress={() => saveMealTimeFromDraft(mealKey)}>
+              <Text style={styles.smallSaveButtonText}>시간 저장하기</Text>
             </TouchableOpacity>
           </View>
         ) : null}
-
-        <View style={styles.noticeBox}>
-          <Text style={styles.noticeTitle}>안전 안내</Text>
-          <Text style={styles.noticeText}>
-            본 앱은 진단이나 처방을 대신하지 않고, 의료진에게 들은 내용을
-            이해하기 쉽게 정리하는 발표용 보조 앱입니다.
-          </Text>
-        </View>
-      </ScrollView>
-    </KeyboardAvoidingView>
-  );
-
-  if (Platform.OS === "web") {
-    return (
-      <View style={styles.webBackground}>
-        <View style={styles.phoneShadow}>
-          <View style={styles.phoneFrame}>
-            <View style={styles.phoneStatusBar}>
-              <Text style={styles.statusTime}>{currentTime}</Text>
-
-              <View style={styles.statusRight}>
-                <View style={styles.signalBars}>
-                  <View style={[styles.signalBar, styles.signalBar1]} />
-                  <View style={[styles.signalBar, styles.signalBar2]} />
-                  <View style={[styles.signalBar, styles.signalBar3]} />
-                  <View style={[styles.signalBar, styles.signalBar4]} />
-                </View>
-
-                <Text style={styles.networkText}>5G</Text>
-
-                <View style={styles.batteryGroup}>
-                  <View style={styles.battery}>
-                    <View style={styles.batteryFill} />
-                  </View>
-                  <View style={styles.batteryCap} />
-                </View>
-              </View>
-            </View>
-
-            <View style={styles.phoneNotch} />
-
-            <View style={styles.phoneScreen}>
-              {appContent}
-              <View style={styles.homeIndicatorWrap}>
-                <View style={styles.homeIndicator} />
-              </View>
-            </View>
-          </View>
-        </View>
       </View>
     );
-  }
+  };
 
-  return <SafeAreaView style={styles.safeArea}>{appContent}</SafeAreaView>;
+  const renderReminderSetupScreen = () => {
+    const plans = buildReminderPlans(reminderDrafts, mealTimes);
+    const requiredMeals = getRequiredMeals(reminderDrafts);
+
+    return (
+      <View style={styles.appScreen}>
+        {renderTopBar("약 알림 설정", "result")}
+        <ScrollView contentContainerStyle={styles.screenBody}>
+          <View style={styles.sectionCard}>
+            <Text style={styles.sectionTitle}>AI가 알림을 준비했습니다</Text>
+            <Text style={styles.sectionDescription}>복용 시간은 약 봉투와 한 번 더 확인해주세요.</Text>
+
+            {reminderDrafts.map((draft) => (
+              <View key={draft.id} style={styles.draftCard}>
+                <Text style={styles.draftTypeLabel}>{medicineTypeLabels[draft.medicineType || "unknown"]}</Text>
+                <Text style={styles.draftTitle}>{draft.label}</Text>
+                {draft.medicines.map((med) => (
+                  <Text key={med} style={styles.draftMedicine}>- {med}</Text>
+                ))}
+              </View>
+            ))}
+          </View>
+
+          <View style={styles.sectionCard}>
+            <Text style={styles.sectionTitle}>식사 시간을 알려주세요</Text>
+            <Text style={styles.sectionDescription}>
+              아침, 점심, 저녁 식사 시간을 한 번에 설정해두면 복용 시간이 자동으로 계산됩니다.
+            </Text>
+            {["breakfast", "lunch", "dinner"].map((mealKey) => (
+              <View key={mealKey}>{renderMealEditor(mealKey)}</View>
+            ))}
+          </View>
+
+          {plans.length ? (
+            <View style={styles.sectionCard}>
+              <Text style={styles.sectionTitle}>저장될 알림</Text>
+              {plans.map((plan) => (
+                <View key={plan.id} style={styles.planRow}>
+                  <Text style={styles.planTime}>{formatKoreanTime(plan.timeText)}</Text>
+                  <View style={styles.planTextBox}>
+                    <Text style={styles.planTitle}>{plan.label}</Text>
+                    <Text style={styles.planBody}>{medicineTypeLabels[plan.medicineType || "unknown"]} · {plan.medicines.join(", ")}</Text>
+                  </View>
+                </View>
+              ))}
+            </View>
+          ) : (
+            <View style={styles.noticeBox}>
+              <Text style={styles.noticeText}>식사 시간을 설정하면 저장될 알림 시간이 여기에 표시됩니다.</Text>
+            </View>
+          )}
+
+          <TouchableOpacity style={styles.mainButton} onPress={saveReminderPlans}>
+            <Text style={styles.mainButtonText}>알림 저장하기</Text>
+          </TouchableOpacity>
+        </ScrollView>
+      </View>
+    );
+  };
+
+  const renderRecordsScreen = () => {
+    return (
+      <View style={styles.appScreen}>
+        {renderTopBar("진료 기록", "tab-home")}
+        <ScrollView contentContainerStyle={styles.screenBody}>
+          {records.length === 0 ? (
+            <EmptyState icon="📋" title="저장된 기록이 없습니다" text="진료 내용을 정리한 뒤 기록 저장하기를 눌러주세요." />
+          ) : (
+            records.map((record) => (
+              <View key={record.id} style={styles.recordCard}>
+                <Text style={styles.recordDate}>{formatDate(record.createdAt)}</Text>
+                <Text style={styles.recordTitle}>{makeRecordTitle(record.result)}</Text>
+                <View style={styles.recordButtonRow}>
+                  <TouchableOpacity style={styles.recordOpenButton} onPress={() => openRecord(record)}>
+                    <Text style={styles.recordOpenText}>다시 보기</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={styles.recordDeleteButton} onPress={() => deleteRecord(record.id)}>
+                    <Text style={styles.recordDeleteText}>삭제</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            ))
+          )}
+        </ScrollView>
+      </View>
+    );
+  };
+
+  const renderRemindersScreen = () => {
+    return (
+      <View style={styles.appScreen}>
+        {renderTopBar("약 알림 관리", "tab-home")}
+        <ScrollView contentContainerStyle={styles.screenBody}>
+          <View style={styles.noticeBox}>
+            <Text style={styles.noticeText}>
+              웹에서는 복용 시간을 저장하고 확인할 수 있습니다. 실제 푸시 알림은 모바일 앱에서 사용할 수 있습니다.
+            </Text>
+          </View>
+
+          {reminders.length === 0 ? (
+            <EmptyState icon="💊" title="저장된 약 알림이 없습니다" text="쉬운 설명 카드에서 약 알림 설정을 눌러 알림을 만들 수 있습니다." />
+          ) : (
+            reminders.map((item) => (
+              <View key={item.id} style={styles.reminderCard}>
+                <Text style={styles.reminderTime}>{formatKoreanTime(item.timeText)}</Text>
+                <Text style={styles.reminderTitle}>{item.label}</Text>
+                <Text style={styles.reminderBody}>{medicineTypeLabels[item.medicineType || "unknown"]} · {item.medicines.join(", ")}</Text>
+                <TouchableOpacity style={styles.recordDeleteButton} onPress={() => deleteReminder(item.id)}>
+                  <Text style={styles.recordDeleteText}>알림 삭제</Text>
+                </TouchableOpacity>
+              </View>
+            ))
+          )}
+        </ScrollView>
+      </View>
+    );
+  };
+
+  const renderSettingsScreen = () => {
+    return (
+      <View style={styles.appScreen}>
+        {renderTopBar("설정", "tab-home")}
+        <ScrollView contentContainerStyle={styles.screenBody}>
+          <View style={styles.sectionCard}>
+            <Text style={styles.sectionTitle}>기본 식사 시간</Text>
+            <Text style={styles.sectionDescription}>식사 시간이 바뀌면 여기에서 수정할 수 있습니다.</Text>
+            {["breakfast", "lunch", "dinner"].map((mealKey) => (
+              <View key={mealKey}>{renderMealEditor(mealKey)}</View>
+            ))}
+          </View>
+
+          <View style={styles.sectionCard}>
+            <Text style={styles.sectionTitle}>앱 정보</Text>
+            <Text style={styles.sectionDescription}>
+              마이닥터 웹은 진료 내용을 쉽게 정리하고, 기록과 복용 시간을 확인할 수 있도록 돕는 웹앱입니다. 모바일 앱에서는 실제 푸시 알림까지 사용할 수 있습니다.
+            </Text>
+          </View>
+        </ScrollView>
+      </View>
+    );
+  };
+
+  const renderShareScreen = () => {
+    const message = familyMessage || buildFamilyMessage();
+
+    return (
+      <View style={styles.appScreen}>
+        {renderTopBar("보호자에게 보내기", "result")}
+        <ScrollView contentContainerStyle={styles.screenBody}>
+          <View style={styles.familyMessageBox}>
+            <Text style={styles.familyMessageTitle}>보호자용 요약문</Text>
+            <Text style={styles.familyMessageText}>{message}</Text>
+          </View>
+          <TouchableOpacity style={styles.familyButtonLarge} onPress={handleNotifyFamily}>
+            <Text style={styles.familyButtonText}>공유하기 / 다시 보내기</Text>
+          </TouchableOpacity>
+        </ScrollView>
+      </View>
+    );
+  };
+
+  const renderCurrentScreen = () => {
+    if (screen === "input") return renderInputScreen();
+    if (screen === "result") return renderResultScreen();
+    if (screen === "share") return renderShareScreen();
+    if (screen === "reminderSetup") return renderReminderSetupScreen();
+    if (activeTab === "records") return renderRecordsScreen();
+    if (activeTab === "reminders") return renderRemindersScreen();
+    if (activeTab === "settings") return renderSettingsScreen();
+    return renderHomeScreen();
+  };
+
+  return (
+    <SafeAreaView style={styles.safeArea}>
+      <KeyboardAvoidingView style={styles.keyboardView} behavior={Platform.OS === "ios" ? "padding" : undefined}>
+        <View style={styles.webAppShell}>
+          <View style={styles.appRoot}>{renderCurrentScreen()}</View>
+          {renderBottomTabs()}
+        </View>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
+  );
 }
 
 function InfoCard({ icon, title, text }) {
   return (
-    <View style={styles.card}>
-      <Text style={styles.cardTitle}>
-        {icon} {title}
-      </Text>
-      <Text style={styles.cardText}>{text}</Text>
+    <View style={styles.infoCard}>
+      <Text style={styles.infoCardTitle}>{icon} {title}</Text>
+      <Text style={styles.infoCardText}>{text}</Text>
     </View>
   );
 }
 
+function EmptyState({ icon, title, text }) {
+  return (
+    <View style={styles.emptyState}>
+      <Text style={styles.emptyStateIcon}>{icon}</Text>
+      <Text style={styles.emptyStateTitle}>{title}</Text>
+      <Text style={styles.emptyStateText}>{text}</Text>
+    </View>
+  );
+}
+
+const baseText = {
+  fontFamily: FONT.koBold,
+  includeFontPadding: false,
+  wordBreak: "keep-all",
+  overflowWrap: "break-word",
+};
+
+const titleText = {
+  fontFamily: FONT.koExtraBold,
+  includeFontPadding: false,
+  wordBreak: "keep-all",
+  overflowWrap: "break-word",
+};
+
+const numberText = {
+  fontFamily: FONT.enBold,
+  includeFontPadding: false,
+  wordBreak: "keep-all",
+  overflowWrap: "break-word",
+};
+
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: "#F3F4F6",
-  },
-
-  webBackground: {
-    flex: 1,
-    backgroundColor: "#DDE7F0",
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: 26,
-    paddingHorizontal: 20,
-  },
-
-  phoneShadow: {
-    shadowColor: "#000",
-    shadowOpacity: 0.24,
-    shadowRadius: 34,
-    shadowOffset: { width: 0, height: 18 },
-  },
-
-  phoneFrame: {
-    width: 390,
-    height: 820,
-    backgroundColor: "#0B1120",
-    borderRadius: 48,
-    padding: 11,
-    borderWidth: 3,
-    borderColor: "#1F2937",
-    position: "relative",
-  },
-
-  phoneStatusBar: {
-    height: 36,
-    backgroundColor: "#F3F4F6",
-    borderTopLeftRadius: 35,
-    borderTopRightRadius: 35,
-    paddingHorizontal: 24,
-    paddingTop: 9,
-    flexDirection: "row",
-    justifyContent: "space-between",
+    backgroundColor: "#F4F8FB",
     alignItems: "center",
   },
-
-  statusTime: {
-    fontSize: 13,
-    fontWeight: "900",
-    color: "#111827",
-    letterSpacing: 0.2,
-  },
-
-  statusRight: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-  },
-
-  signalBars: {
-    flexDirection: "row",
-    alignItems: "flex-end",
-    gap: 2,
-    height: 12,
-    marginRight: 1,
-  },
-
-  signalBar: {
-    width: 3,
-    backgroundColor: "#111827",
-    borderRadius: 2,
-  },
-
-  signalBar1: {
-    height: 4,
-  },
-
-  signalBar2: {
-    height: 6,
-  },
-
-  signalBar3: {
-    height: 8,
-  },
-
-  signalBar4: {
-    height: 10,
-  },
-
-  networkText: {
-    fontSize: 11,
-    fontWeight: "900",
-    color: "#111827",
-    marginLeft: 1,
-  },
-
-  batteryGroup: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginLeft: 2,
-  },
-
-  battery: {
-    width: 22,
-    height: 11,
-    borderWidth: 1.5,
-    borderColor: "#111827",
-    borderRadius: 3,
-    padding: 1.4,
-  },
-
-  batteryFill: {
-    height: "100%",
-    width: "78%",
-    backgroundColor: "#111827",
-    borderRadius: 1.5,
-  },
-
-  batteryCap: {
-    width: 2.6,
-    height: 5.2,
-    backgroundColor: "#111827",
-    borderTopRightRadius: 2,
-    borderBottomRightRadius: 2,
-    marginLeft: 1.5,
-  },
-
-  phoneNotch: {
-    position: "absolute",
-    top: 16,
-    left: "50%",
-    marginLeft: -52,
-    width: 104,
-    height: 25,
-    backgroundColor: "#0B1120",
-    borderBottomLeftRadius: 19,
-    borderBottomRightRadius: 19,
-    zIndex: 10,
-  },
-
-  phoneScreen: {
-    flex: 1,
-    backgroundColor: "#F3F4F6",
-    borderBottomLeftRadius: 35,
-    borderBottomRightRadius: 35,
-    overflow: "hidden",
-    position: "relative",
-  },
-
-  homeIndicatorWrap: {
-    position: "absolute",
-    left: 0,
-    right: 0,
-    bottom: 7,
-    alignItems: "center",
-    pointerEvents: "none",
-  },
-
-  homeIndicator: {
-    width: 118,
-    height: 5,
-    borderRadius: 999,
-    backgroundColor: "#111827",
-    opacity: 0.85,
-  },
-
   keyboardView: {
     flex: 1,
-  },
-
-  container: {
     width: "100%",
-    alignSelf: "center",
-    padding: 18,
-    paddingBottom: 56,
-  },
-
-  header: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 24,
-    padding: 21,
-    marginBottom: 22,
+    backgroundColor: "#F4F8FB",
     alignItems: "center",
-    shadowColor: "#000",
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 3 },
-    elevation: 3,
   },
-
-  title: {
-    fontSize: Platform.OS === "web" ? 22 : 27,
-    fontWeight: "900",
-    color: "#111827",
-    marginBottom: 10,
+  webAppShell: {
+    flex: 1,
+    width: "100%",
+    maxWidth: 520,
+    backgroundColor: "#F4F8FB",
+    borderLeftWidth: Platform.OS === "web" ? 1 : 0,
+    borderRightWidth: Platform.OS === "web" ? 1 : 0,
+    borderColor: "#E1EDF4",
+  },
+  appRoot: {
+    flex: 1,
+    backgroundColor: "#F4F8FB",
+  },
+  appScreen: {
+    flex: 1,
+    backgroundColor: "#F4F8FB",
+  },
+  homeWrap: {
+    paddingHorizontal: 22,
+    paddingTop: 26,
+    paddingBottom: 40,
+    backgroundColor: "#F4F8FB",
+    alignItems: "center",
+  },
+  homeLogoImage: {
+    width: 160,
+    height: 160,
+    marginBottom: 4,
+  },
+  homeMainText: {
+    ...titleText,
+    fontSize: 22,
+    lineHeight: 36,
+    color: "#083A5A",
     textAlign: "center",
+    marginBottom: 24,
   },
-
-  subtitle: {
-    fontSize: Platform.OS === "web" ? 15 : 18,
-    color: "#4B5563",
-    textAlign: "center",
-    lineHeight: Platform.OS === "web" ? 23 : 27,
-  },
-
-  inputBox: {
-    marginBottom: 22,
-  },
-
-  label: {
-    fontSize: Platform.OS === "web" ? 18 : 20,
-    fontWeight: "900",
-    color: "#111827",
-    marginBottom: 10,
-  },
-
-  textArea: {
-    minHeight: 155,
+  homeFeatureBox: {
+    width: "100%",
     backgroundColor: "#FFFFFF",
-    borderRadius: 18,
-    borderWidth: 2,
-    borderColor: "#D1D5DB",
-    padding: 16,
-    fontSize: Platform.OS === "web" ? 16 : 19,
-    lineHeight: Platform.OS === "web" ? 26 : 30,
-    color: "#111827",
+    borderRadius: 28,
+    padding: 22,
+    borderWidth: 1.5,
+    borderColor: "#D8E7F0",
+    marginBottom: 22,
+    boxShadow: Platform.OS === "web" ? "0 10px 22px rgba(15, 49, 74, 0.08)" : undefined,
+  },
+  homeFeatureTitle: {
+    ...titleText,
+    fontSize: 21,
+    color: "#083A5A",
     marginBottom: 12,
   },
-
-  subButtonRow: {
+  homeFeatureText: {
+    ...baseText,
+    fontSize: 18,
+    lineHeight: 32,
+    color: "#164B6A",
+  },
+  startButton: {
+    width: "100%",
+    backgroundColor: "#0B78A6",
+    borderRadius: 24,
+    paddingVertical: 20,
+    alignItems: "center",
+    marginBottom: 14,
+  },
+  startButtonText: {
+    ...titleText,
+    fontSize: 22,
+    color: "#FFFFFF",
+  },
+  quickRow: {
     flexDirection: "row",
-    gap: 10,
-    marginBottom: 14,
+    width: "100%",
   },
-
-  voiceButtonHalf: {
+  quickButton: {
     flex: 1,
-    backgroundColor: "#DBEAFE",
-    paddingVertical: 14,
-    borderRadius: 16,
-    alignItems: "center",
-    borderWidth: 1.5,
-    borderColor: "#BFDBFE",
-  },
-
-  clearButtonHalf: {
-    flex: 1,
-    backgroundColor: "#FEE2E2",
-    paddingVertical: 14,
-    borderRadius: 16,
-    alignItems: "center",
-  },
-
-  voiceButtonActive: {
-    backgroundColor: "#FCA5A5",
-    borderColor: "#F87171",
-  },
-
-  voiceButtonText: {
-    color: "#1E3A8A",
-    fontSize: Platform.OS === "web" ? 15 : 17,
-    fontWeight: "900",
-  },
-
-  clearButtonText: {
-    color: "#991B1B",
-    fontSize: Platform.OS === "web" ? 15 : 17,
-    fontWeight: "900",
-  },
-
-  voiceMessage: {
-    fontSize: 13,
-    color: "#4B5563",
-    marginTop: -6,
-    marginBottom: 14,
-    lineHeight: 20,
-  },
-
-  photoGuideText: {
-    fontSize: 13,
-    color: "#6B7280",
-    marginBottom: 8,
-    fontWeight: "700",
-  },
-
-  photoActionRow: {
-    flexDirection: "row",
-    gap: 10,
-    marginBottom: 14,
-  },
-
-  photoSelectButton: {
-    flex: 1,
-    backgroundColor: "#FDF2F8",
-    paddingVertical: 14,
-    borderRadius: 16,
-    alignItems: "center",
-    borderWidth: 1.5,
-    borderColor: "#F9A8D4",
-  },
-
-  photoCaptureButton: {
-    flex: 1,
-    backgroundColor: "#FCE7F3",
-    paddingVertical: 14,
-    borderRadius: 16,
-    alignItems: "center",
-    borderWidth: 1.5,
-    borderColor: "#F472B6",
-  },
-
-  photoButtonText: {
-    color: "#9D174D",
-    fontSize: Platform.OS === "web" ? 15 : 17,
-    fontWeight: "900",
-  },
-
-  photoPreviewBox: {
     backgroundColor: "#FFFFFF",
-    borderRadius: 18,
-    padding: 14,
-    borderWidth: 1.5,
-    borderColor: "#F9A8D4",
-    marginBottom: 14,
+    borderRadius: 22,
+    paddingVertical: 17,
+    alignItems: "center",
+    borderWidth: 1.8,
+    borderColor: "#BCD7E5",
+    marginHorizontal: 5,
   },
-
+  quickButtonText: {
+    ...titleText,
+    fontSize: 17,
+    color: "#315B73",
+  },
+  topBar: {
+    minHeight: 82,
+    backgroundColor: "#FFFFFF",
+    paddingHorizontal: 16,
+    paddingVertical: 11,
+    flexDirection: "row",
+    alignItems: "center",
+    borderBottomWidth: 1.5,
+    borderBottomColor: "#D8E7F0",
+  },
+  backIconButton: {
+    width: 50,
+    height: 50,
+    borderRadius: 18,
+    backgroundColor: "#EDF5FA",
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 12,
+  },
+  backIconText: {
+    ...numberText,
+    fontSize: 30,
+    color: "#083A5A",
+  },
+  topBarTitleBox: {
+    flex: 1,
+  },
+  topBarTitle: {
+    ...titleText,
+    fontSize: 23,
+    color: "#083A5A",
+  },
+  topBarSubtitle: {
+    ...numberText,
+    fontSize: 14,
+    color: "#4A7087",
+    marginTop: 2,
+  },
+  logoMini: {
+    width: 54,
+    height: 54,
+    borderRadius: 18,
+    backgroundColor: "#FFFFFF",
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1.4,
+    borderColor: "#CFE3EE",
+  },
+  logoMiniImage: {
+    width: 48,
+    height: 48,
+  },
+  screenBody: {
+    padding: 18,
+    paddingBottom: 40,
+  },
+  sectionCard: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 28,
+    padding: 20,
+    marginBottom: 20,
+    borderWidth: 1.4,
+    borderColor: "#D8E7F0",
+    boxShadow: Platform.OS === "web" ? "0 8px 18px rgba(15, 49, 74, 0.06)" : undefined,
+  },
+  sectionTitle: {
+    ...titleText,
+    fontSize: 22,
+    lineHeight: 34,
+    color: "#083A5A",
+    marginBottom: 10,
+  },
+  sectionDescription: {
+    ...baseText,
+    fontSize: 17,
+    lineHeight: 30,
+    color: "#315B73",
+    marginBottom: 16,
+  },
+  textArea: {
+    ...baseText,
+    minHeight: 175,
+    backgroundColor: "#F8FBFD",
+    borderRadius: 22,
+    borderWidth: 2,
+    borderColor: "#BCD7E5",
+    padding: 16,
+    fontSize: 18,
+    lineHeight: 32,
+    color: "#0B2535",
+    marginBottom: 18,
+    outlineStyle: "none",
+  },
+  photoButtonRow: {
+    flexDirection: "row",
+    marginBottom: 16,
+  },
+  voiceButtonColumn: {
+    marginBottom: 16,
+  },
+  clearButton: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 20,
+    paddingVertical: 15,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1.6,
+    borderColor: "#BCD7E5",
+    marginHorizontal: 5,
+  },
+  clearButtonText: {
+    ...titleText,
+    fontSize: 17,
+    color: "#315B73",
+    textAlign: "center",
+  },
+  photoButton: {
+    flex: 1,
+    backgroundColor: "#EFF7FB",
+    borderRadius: 20,
+    paddingVertical: 17,
+    paddingHorizontal: 8,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1.8,
+    borderColor: "#8FC7DE",
+    marginHorizontal: 5,
+  },
+  listeningButton: {
+    backgroundColor: "#EAF7EF",
+    borderColor: "#7DD3A7",
+  },
+  photoButtonText: {
+    ...titleText,
+    fontSize: 17,
+    color: "#0B5D83",
+    textAlign: "center",
+  },
+  voiceMessage: {
+    ...baseText,
+    fontSize: 15,
+    lineHeight: 25,
+    color: "#0B5D83",
+  },
+  photoPreviewBox: {
+    backgroundColor: "#F8FBFD",
+    borderRadius: 22,
+    padding: 15,
+    borderWidth: 1.8,
+    borderColor: "#BCD7E5",
+    marginBottom: 16,
+  },
   photoPreviewHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 10,
+    marginBottom: 12,
   },
-
   photoPreviewTitle: {
-    fontSize: 15,
-    fontWeight: "900",
-    color: "#9D174D",
+    ...titleText,
+    fontSize: 17,
+    color: "#083A5A",
   },
-
   photoRemoveText: {
-    fontSize: 14,
-    fontWeight: "900",
-    color: "#BE123C",
+    ...titleText,
+    fontSize: 16,
+    color: "#B91C1C",
   },
-
+  medicineImageFrame: {
+    width: "100%",
+    height: 235,
+    borderRadius: 20,
+    backgroundColor: "#FFFFFF",
+    overflow: "hidden",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: "#D8E7F0",
+  },
   medicineImage: {
     width: "100%",
-    height: 150,
-    borderRadius: 14,
-    backgroundColor: "#F3F4F6",
-    marginBottom: 8,
+    height: "100%",
   },
-
-  photoFileName: {
-    fontSize: 12,
-    color: "#6B7280",
-    marginBottom: 8,
-  },
-
   photoAnalysisText: {
-    fontSize: 13,
-    lineHeight: 20,
-    color: "#831843",
-    fontWeight: "700",
-    marginBottom: 8,
+    ...baseText,
+    fontSize: 17,
+    lineHeight: 30,
+    color: "#083A5A",
   },
-
-  mainButton: {
-    backgroundColor: "#A7F3D0",
-    paddingVertical: 19,
-    borderRadius: 20,
-    alignItems: "center",
-    marginTop: 4,
-    shadowColor: "#000",
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 4,
-  },
-
-  loadingButton: {
-    backgroundColor: "#D1D5DB",
-  },
-
-  mainButtonText: {
-    color: "#064E3B",
-    fontSize: Platform.OS === "web" ? 19 : 22,
-    fontWeight: "900",
-  },
-
-  summaryBox: {
-    backgroundColor: "#ECFDF5",
-    borderRadius: 20,
-    padding: 18,
-    marginBottom: 18,
-    borderWidth: 1.5,
-    borderColor: "#A7F3D0",
-  },
-
-  summaryTitle: {
-    fontSize: Platform.OS === "web" ? 17 : 19,
-    fontWeight: "900",
-    color: "#065F46",
-    marginBottom: 8,
-  },
-
-  summaryText: {
-    fontSize: Platform.OS === "web" ? 16 : 18,
-    lineHeight: Platform.OS === "web" ? 26 : 29,
-    color: "#064E3B",
-  },
-
-  resultSection: {
-    gap: 18,
-  },
-
-  card: {
-    backgroundColor: "#FFFFFF",
+  emptyPhotoBox: {
+    minHeight: 172,
     borderRadius: 22,
+    backgroundColor: "#F8FBFD",
+    borderWidth: 2,
+    borderColor: "#BCD7E5",
+    borderStyle: "dashed",
+    alignItems: "center",
+    justifyContent: "center",
     padding: 22,
-    borderWidth: 1.5,
-    borderColor: "#E5E7EB",
-    shadowColor: "#000",
-    shadowOpacity: 0.07,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 3 },
-    elevation: 3,
+    marginBottom: 16,
   },
-
-  cardTitle: {
-    fontSize: Platform.OS === "web" ? 18 : 21,
-    fontWeight: "900",
-    color: "#111827",
-    marginBottom: 14,
-    paddingBottom: 12,
-    borderBottomWidth: 2,
-    borderBottomColor: "#F3F4F6",
-  },
-
-  cardText: {
-    fontSize: Platform.OS === "web" ? 16 : 18,
-    lineHeight: Platform.OS === "web" ? 27 : 31,
-    color: "#374151",
-  },
-
-  actionSection: {
-    marginTop: 20,
-    gap: 12,
-  },
-
-  familyButton: {
-    backgroundColor: "#DBEAFE",
-    paddingVertical: 17,
-    borderRadius: 18,
-    alignItems: "center",
-    borderWidth: 1.5,
-    borderColor: "#93C5FD",
-  },
-
-  familyButtonText: {
-    color: "#1E3A8A",
-    fontSize: Platform.OS === "web" ? 17 : 19,
-    fontWeight: "900",
-  },
-
-  alarmButton: {
-    backgroundColor: "#F3F4F6",
-    paddingVertical: 17,
-    borderRadius: 18,
-    alignItems: "center",
-    borderWidth: 1.5,
-    borderColor: "#D1D5DB",
-  },
-
-  alarmButtonText: {
-    color: "#374151",
-    fontSize: Platform.OS === "web" ? 17 : 19,
-    fontWeight: "900",
-  },
-
-  appNoticeBox: {
-    marginTop: 14,
-    backgroundColor: "#EEF2FF",
-    borderRadius: 16,
-    padding: 14,
-    borderWidth: 1,
-    borderColor: "#C7D2FE",
-  },
-
-  appNoticeText: {
-    fontSize: 14,
-    lineHeight: 21,
-    color: "#3730A3",
-    fontWeight: "700",
-  },
-
-  familyMessageBox: {
-    marginTop: 16,
-    backgroundColor: "#FFFFFF",
-    borderRadius: 20,
-    padding: 18,
-    borderWidth: 1.5,
-    borderColor: "#BFDBFE",
-  },
-
-  familyMessageTitle: {
-    fontSize: 18,
-    fontWeight: "900",
-    color: "#1E3A8A",
+  emptyPhotoIcon: {
+    fontSize: 42,
     marginBottom: 10,
   },
-
-  familyMessageText: {
-    fontSize: 14,
-    lineHeight: 22,
-    color: "#374151",
+  emptyPhotoText: {
+    ...baseText,
+    fontSize: 17,
+    lineHeight: 30,
+    color: "#315B73",
+    textAlign: "center",
   },
-
-  closeFamilyButton: {
-    marginTop: 14,
-    backgroundColor: "#E5E7EB",
-    paddingVertical: 12,
-    borderRadius: 14,
+  mainButton: {
+    backgroundColor: "#0B78A6",
+    borderRadius: 24,
+    paddingVertical: 20,
+    alignItems: "center",
+    marginBottom: 14,
+  },
+  loadingButton: {
+    backgroundColor: "#8AA8B8",
+  },
+  mainButtonText: {
+    ...titleText,
+    fontSize: 21,
+    color: "#FFFFFF",
+    textAlign: "center",
+    paddingHorizontal: 8,
+  },
+  summaryBox: {
+    backgroundColor: "#DFF1FA",
+    borderRadius: 24,
+    padding: 22,
+    borderWidth: 1.8,
+    borderColor: "#8FC7DE",
+    marginBottom: 18,
+  },
+  summaryTitle: {
+    ...titleText,
+    fontSize: 21,
+    lineHeight: 32,
+    color: "#083A5A",
+    marginBottom: 10,
+  },
+  summaryText: {
+    ...baseText,
+    fontSize: 18,
+    lineHeight: 32,
+    color: "#083A5A",
+  },
+  infoCard: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 24,
+    padding: 22,
+    marginBottom: 16,
+    borderWidth: 1.8,
+    borderColor: "#D8E7F0",
+  },
+  infoCardTitle: {
+    ...titleText,
+    fontSize: 21,
+    lineHeight: 32,
+    color: "#083A5A",
+    marginBottom: 13,
+    paddingBottom: 11,
+    borderBottomWidth: 2,
+    borderBottomColor: "#EFF7FB",
+  },
+  infoCardText: {
+    ...baseText,
+    fontSize: 17,
+    lineHeight: 31,
+    color: "#17384A",
+  },
+  actionPanel: {
+    flexDirection: "row",
+    marginTop: 8,
+    marginBottom: 14,
+  },
+  familyButton: {
+    flex: 1,
+    backgroundColor: "#0B78A6",
+    borderRadius: 22,
+    paddingVertical: 18,
+    alignItems: "center",
+    marginRight: 5,
+  },
+  familyButtonLarge: {
+    marginTop: 18,
+    backgroundColor: "#0B78A6",
+    borderRadius: 22,
+    paddingVertical: 18,
     alignItems: "center",
   },
-
-  closeFamilyButtonText: {
-    color: "#374151",
-    fontSize: 15,
-    fontWeight: "800",
+  familyButtonText: {
+    ...titleText,
+    fontSize: 17,
+    color: "#FFFFFF",
   },
-
-  noticeBox: {
-    marginTop: 24,
-    backgroundColor: "#FEF3C7",
-    borderRadius: 16,
+  alarmButton: {
+    flex: 1,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 22,
+    paddingVertical: 18,
+    alignItems: "center",
+    borderWidth: 1.8,
+    borderColor: "#BCD7E5",
+    marginLeft: 5,
+  },
+  alarmButtonText: {
+    ...titleText,
+    fontSize: 17,
+    color: "#315B73",
+  },
+  saveButton: {
+    backgroundColor: "#EAF7EF",
+    borderRadius: 22,
+    paddingVertical: 18,
+    alignItems: "center",
+    borderWidth: 1.8,
+    borderColor: "#B7E2C5",
+  },
+  saveButtonText: {
+    ...titleText,
+    fontSize: 17,
+    color: "#14532D",
+  },
+  draftCard: {
+    backgroundColor: "#F8FBFD",
+    borderRadius: 20,
     padding: 16,
+    borderWidth: 1.5,
+    borderColor: "#BCD7E5",
+    marginBottom: 12,
   },
-
-  noticeTitle: {
+  draftTypeLabel: {
+    ...titleText,
+    alignSelf: "flex-start",
+    backgroundColor: "#DFF1FA",
+    color: "#0B5D83",
+    borderRadius: 999,
+    paddingVertical: 5,
+    paddingHorizontal: 10,
+    fontSize: 14,
+    marginBottom: 8,
+  },
+  draftTitle: {
+    ...titleText,
+    fontSize: 18,
+    color: "#083A5A",
+    marginBottom: 8,
+  },
+  draftMedicine: {
+    ...baseText,
+    fontSize: 17,
+    lineHeight: 28,
+    color: "#17384A",
+  },
+  mealEditorBox: {
+    backgroundColor: "#F8FBFD",
+    borderRadius: 20,
+    borderWidth: 1.4,
+    borderColor: "#D8E7F0",
+    marginBottom: 12,
+    overflow: "hidden",
+  },
+  mealToggleButton: {
+    padding: 15,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  mealInputLabel: {
+    ...titleText,
+    fontSize: 17,
+    color: "#083A5A",
+    marginBottom: 5,
+  },
+  mealCurrentText: {
+    ...numberText,
+    fontSize: 19,
+    color: "#0B78A6",
+  },
+  mealToggleText: {
+    ...titleText,
     fontSize: 16,
-    fontWeight: "900",
-    color: "#92400E",
+    color: "#0B5D83",
+  },
+  timePickerPanel: {
+    borderTopWidth: 1,
+    borderTopColor: "#D8E7F0",
+    padding: 14,
+    backgroundColor: "#FFFFFF",
+  },
+  segmentRow: {
+    flexDirection: "row",
+    marginBottom: 12,
+  },
+  segmentButton: {
+    flex: 1,
+    borderRadius: 16,
+    paddingVertical: 12,
+    alignItems: "center",
+    borderWidth: 1.5,
+    borderColor: "#BCD7E5",
+    marginHorizontal: 4,
+    backgroundColor: "#F8FBFD",
+  },
+  segmentButtonActive: {
+    backgroundColor: "#0B78A6",
+    borderColor: "#0B78A6",
+  },
+  segmentButtonText: {
+    ...titleText,
+    fontSize: 16,
+    color: "#315B73",
+  },
+  segmentButtonTextActive: {
+    color: "#FFFFFF",
+  },
+  timePickerLabel: {
+    ...titleText,
+    fontSize: 15,
+    color: "#315B73",
+    marginTop: 8,
+    marginBottom: 8,
+  },
+  optionGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+  },
+  timeOption: {
+    width: "15.4%",
+    margin: "0.6%",
+    borderRadius: 14,
+    paddingVertical: 11,
+    alignItems: "center",
+    backgroundColor: "#F8FBFD",
+    borderWidth: 1.4,
+    borderColor: "#D8E7F0",
+  },
+  timeOptionActive: {
+    backgroundColor: "#DFF1FA",
+    borderColor: "#0B78A6",
+  },
+  timeOptionText: {
+    ...numberText,
+    fontSize: 16,
+    color: "#315B73",
+  },
+  timeOptionTextActive: {
+    color: "#0B5D83",
+  },
+  smallSaveButton: {
+    marginTop: 14,
+    backgroundColor: "#0B78A6",
+    borderRadius: 16,
+    paddingVertical: 14,
+    alignItems: "center",
+  },
+  smallSaveButtonText: {
+    ...titleText,
+    fontSize: 16,
+    color: "#FFFFFF",
+  },
+  planRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#F8FBFD",
+    borderRadius: 18,
+    padding: 14,
+    marginBottom: 10,
+    borderWidth: 1.4,
+    borderColor: "#D8E7F0",
+  },
+  planTime: {
+    ...numberText,
+    width: 92,
+    fontSize: 18,
+    color: "#0B78A6",
+  },
+  planTextBox: {
+    flex: 1,
+  },
+  planTitle: {
+    ...titleText,
+    fontSize: 16,
+    color: "#083A5A",
+    marginBottom: 4,
+  },
+  planBody: {
+    ...baseText,
+    fontSize: 16,
+    lineHeight: 26,
+    color: "#17384A",
+  },
+  recordCard: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 24,
+    padding: 20,
+    borderWidth: 1.6,
+    borderColor: "#D8E7F0",
+    marginBottom: 14,
+  },
+  recordDate: {
+    ...numberText,
+    fontSize: 15,
+    color: "#0B78A6",
+    marginBottom: 8,
+  },
+  recordTitle: {
+    ...baseText,
+    fontSize: 17,
+    lineHeight: 29,
+    color: "#17384A",
+    marginBottom: 14,
+  },
+  recordButtonRow: {
+    flexDirection: "row",
+  },
+  recordOpenButton: {
+    flex: 1,
+    backgroundColor: "#0B78A6",
+    borderRadius: 18,
+    paddingVertical: 14,
+    alignItems: "center",
+    marginRight: 5,
+  },
+  recordOpenText: {
+    ...titleText,
+    fontSize: 16,
+    color: "#FFFFFF",
+  },
+  recordDeleteButton: {
+    backgroundColor: "#FFF1F2",
+    borderRadius: 18,
+    paddingVertical: 14,
+    paddingHorizontal: 18,
+    alignItems: "center",
+    borderWidth: 1.5,
+    borderColor: "#FECACA",
+    marginLeft: 5,
+  },
+  recordDeleteText: {
+    ...titleText,
+    fontSize: 16,
+    color: "#B91C1C",
+  },
+  reminderCard: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 24,
+    padding: 20,
+    borderWidth: 1.6,
+    borderColor: "#D8E7F0",
+    marginBottom: 14,
+  },
+  reminderTime: {
+    ...numberText,
+    fontSize: 25,
+    color: "#0B78A6",
+    marginBottom: 8,
+  },
+  reminderTitle: {
+    ...titleText,
+    fontSize: 18,
+    color: "#083A5A",
     marginBottom: 6,
   },
-
+  reminderBody: {
+    ...baseText,
+    fontSize: 17,
+    lineHeight: 29,
+    color: "#17384A",
+    marginBottom: 12,
+  },
+  emptyState: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 28,
+    padding: 26,
+    alignItems: "center",
+    borderWidth: 1.5,
+    borderColor: "#D8E7F0",
+  },
+  emptyStateIcon: {
+    fontSize: 42,
+    marginBottom: 12,
+  },
+  emptyStateTitle: {
+    ...titleText,
+    fontSize: 21,
+    color: "#083A5A",
+    marginBottom: 8,
+    textAlign: "center",
+  },
+  emptyStateText: {
+    ...baseText,
+    fontSize: 17,
+    lineHeight: 29,
+    color: "#315B73",
+    textAlign: "center",
+  },
+  noticeBox: {
+    backgroundColor: "#EAF7EF",
+    borderRadius: 18,
+    padding: 14,
+    borderWidth: 1.5,
+    borderColor: "#B7E2C5",
+    marginBottom: 14,
+  },
   noticeText: {
-    fontSize: 14,
-    lineHeight: 21,
-    color: "#92400E",
+    ...baseText,
+    fontSize: 16,
+    lineHeight: 26,
+    color: "#14532D",
+  },
+  familyMessageBox: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 24,
+    padding: 22,
+    borderWidth: 1.8,
+    borderColor: "#BCD7E5",
+  },
+  familyMessageTitle: {
+    ...titleText,
+    fontSize: 21,
+    color: "#083A5A",
+    marginBottom: 14,
+  },
+  familyMessageText: {
+    ...baseText,
+    fontSize: 16,
+    lineHeight: 30,
+    color: "#17384A",
+  },
+  bottomTabs: {
+    height: 82,
+    backgroundColor: "#FFFFFF",
+    borderTopWidth: 1.5,
+    borderTopColor: "#D8E7F0",
+    flexDirection: "row",
+    paddingHorizontal: 8,
+    paddingTop: 8,
+    paddingBottom: 8,
+  },
+  tabButton: {
+    flex: 1,
+    borderRadius: 18,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  tabButtonActive: {
+    backgroundColor: "#DFF1FA",
+  },
+  tabIcon: {
+    fontSize: 22,
+    marginBottom: 2,
+  },
+  tabLabel: {
+    ...titleText,
+    fontSize: 13,
+    color: "#6B7C8D",
+  },
+  tabLabelActive: {
+    color: "#0B5D83",
   },
 });
