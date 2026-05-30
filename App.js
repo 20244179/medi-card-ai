@@ -35,6 +35,22 @@ const FONT = {
   enExtraBold: "MontserratExtraBold",
 };
 
+const applyGlobalFontDefaults = () => {
+  Text.defaultProps = Text.defaultProps || {};
+  Text.defaultProps.style = [
+    { fontFamily: FONT.koBold, includeFontPadding: true },
+    Text.defaultProps.style,
+  ].filter(Boolean);
+
+  TextInput.defaultProps = TextInput.defaultProps || {};
+  TextInput.defaultProps.style = [
+    { fontFamily: FONT.koBold, includeFontPadding: true },
+    TextInput.defaultProps.style,
+  ].filter(Boolean);
+};
+
+applyGlobalFontDefaults();
+
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
     shouldShowAlert: true,
@@ -2185,7 +2201,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   homeFeatureText: {
-    fontFamily: FONT.koRegular,
+    fontFamily: FONT.koBold,
     fontSize: 18,
     lineHeight: 32,
     color: "#164B6A",
@@ -2315,14 +2331,14 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   sectionDescription: {
-    fontFamily: FONT.koRegular,
+    fontFamily: FONT.koBold,
     fontSize: 17,
     lineHeight: 30,
     color: "#315B73",
     marginBottom: 16,
   },
   textArea: {
-    fontFamily: FONT.koRegular,
+    fontFamily: FONT.koBold,
     minHeight: 175,
     backgroundColor: "#F8FBFD",
     borderRadius: 22,
@@ -2351,7 +2367,7 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   voiceDescription: {
-    fontFamily: FONT.koRegular,
+    fontFamily: FONT.koBold,
     fontSize: 16,
     lineHeight: 28,
     color: "#315B73",
@@ -2490,7 +2506,7 @@ const styles = StyleSheet.create({
     height: "100%",
   },
   photoAnalysisText: {
-    fontFamily: FONT.koRegular,
+    fontFamily: FONT.koBold,
     fontSize: 17,
     lineHeight: 30,
     color: "#083A5A",
@@ -2509,10 +2525,11 @@ const styles = StyleSheet.create({
   },
   emptyPhotoIcon: {
     fontSize: 42,
+    fontFamily: FONT.koBold,
     marginBottom: 10,
   },
   emptyPhotoText: {
-    fontFamily: FONT.koRegular,
+    fontFamily: FONT.koBold,
     fontSize: 17,
     lineHeight: 30,
     color: "#315B73",
@@ -2567,7 +2584,7 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   summaryText: {
-    fontFamily: FONT.koRegular,
+    fontFamily: FONT.koBold,
     fontSize: 18,
     lineHeight: 32,
     color: "#083A5A",
@@ -2592,7 +2609,7 @@ const styles = StyleSheet.create({
     borderBottomColor: "#EFF7FB",
   },
   infoCardText: {
-    fontFamily: FONT.koRegular,
+    fontFamily: FONT.koBold,
     fontSize: 17,
     lineHeight: 31,
     color: "#17384A",
@@ -2682,7 +2699,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   draftMedicine: {
-    fontFamily: FONT.koRegular,
+    fontFamily: FONT.koBold,
     fontSize: 17,
     lineHeight: 28,
     color: "#17384A",
@@ -2708,7 +2725,7 @@ const styles = StyleSheet.create({
     color: "#083A5A",
   },
   mealCurrentText: {
-    fontFamily: FONT.koRegular,
+    fontFamily: FONT.koBold,
     fontSize: 16,
     fontWeight: "800",
     color: "#0B78A6",
@@ -2795,7 +2812,7 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   planBody: {
-    fontFamily: FONT.koRegular,
+    fontFamily: FONT.koBold,
     fontSize: 16,
     lineHeight: 26,
     color: "#17384A",
@@ -2816,7 +2833,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   recordTitle: {
-    fontFamily: FONT.koRegular,
+    fontFamily: FONT.koBold,
     fontSize: 17,
     lineHeight: 29,
     color: "#17384A",
@@ -2878,7 +2895,7 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   reminderBody: {
-    fontFamily: FONT.koRegular,
+    fontFamily: FONT.koBold,
     fontSize: 17,
     lineHeight: 29,
     color: "#17384A",
@@ -2894,6 +2911,7 @@ const styles = StyleSheet.create({
   },
   emptyStateIcon: {
     fontSize: 42,
+    fontFamily: FONT.koBold,
     marginBottom: 12,
   },
   emptyStateTitle: {
@@ -2905,7 +2923,7 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   emptyStateText: {
-    fontFamily: FONT.koRegular,
+    fontFamily: FONT.koBold,
     fontSize: 17,
     lineHeight: 29,
     color: "#315B73",
@@ -2920,7 +2938,7 @@ const styles = StyleSheet.create({
     marginBottom: 14,
   },
   noticeText: {
-    fontFamily: FONT.koRegular,
+    fontFamily: FONT.koBold,
     fontSize: 16,
     lineHeight: 26,
     color: "#14532D",
@@ -2934,7 +2952,7 @@ const styles = StyleSheet.create({
     borderColor: "#8FC7DE",
   },
   shareNoticeText: {
-    fontFamily: FONT.koRegular,
+    fontFamily: FONT.koBold,
     fontSize: 16,
     lineHeight: 28,
     color: "#083A5A",
@@ -2954,7 +2972,7 @@ const styles = StyleSheet.create({
     marginBottom: 14,
   },
   familyMessageText: {
-    fontFamily: FONT.koRegular,
+    fontFamily: FONT.koBold,
     fontSize: 16,
     lineHeight: 30,
     color: "#17384A",
@@ -2975,7 +2993,7 @@ const styles = StyleSheet.create({
     color: "#0B5D83",
   },
   recordDetailText: {
-    fontFamily: FONT.koRegular,
+    fontFamily: FONT.koBold,
     fontSize: 17,
     lineHeight: 30,
     color: "#17384A",
@@ -2997,7 +3015,7 @@ const styles = StyleSheet.create({
     padding: 14,
   },
   mealOpenGuide: {
-    fontFamily: FONT.koRegular,
+    fontFamily: FONT.koBold,
     fontSize: 15,
     fontWeight: "800",
     color: "#0B78A6",
@@ -3045,6 +3063,7 @@ const styles = StyleSheet.create({
   },
   tabIcon: {
     fontSize: 22,
+    fontFamily: FONT.koBold,
     marginBottom: 2,
   },
   tabLabel: {
