@@ -41,7 +41,10 @@
         "expo-speech-recognition",
         {
           "microphonePermission": "진료 내용을 음성으로 입력하기 위해 마이크 권한이 필요합니다.",
-          "speechRecognitionPermission": "진료 내용을 음성으로 입력하기 위해 음성 인식 권한이 필요합니다."
+          "speechRecognitionPermission": "진료 내용을 음성으로 입력하기 위해 음성 인식 권한이 필요합니다.",
+          "androidSpeechServicePackages": [
+            "com.google.android.googlequicksearchbox"
+          ]
         }
       ]
     ],
