@@ -307,6 +307,90 @@ export default function App() {
     return "unknown";
   };
 
+
+  const detectMedicineTypeFromMedicinePhoto = (text = "") => {
+    const source = String(text || "");
+
+    const diabetesStrongKeywords = [
+      "메트포르민",
+      "다이아벡스",
+      "글루파",
+      "글루파850",
+      "다이아미크론",
+      "디아미크론",
+      "다이아미크론엠알",
+      "디아미크론엠알",
+      "diamicron",
+      "diamicron mr",
+      "diamicronmr",
+      "gliclazide",
+      "metformin",
+      "glupa",
+      "glupa850",
+      "insulin",
+      "인슐린",
+    ];
+
+    const bloodPressureStrongKeywords = [
+      "암로디핀",
+      "노바스크",
+      "로사르탄",
+      "발사르탄",
+      "텔미사르탄",
+      "amlodipine",
+      "losartan",
+      "valsartan",
+      "telmisartan",
+    ];
+
+    const refluxStrongKeywords = [
+      "오메프라졸",
+      "판토프라졸",
+      "란소프라졸",
+      "라베프라졸",
+      "omeprazole",
+      "pantoprazole",
+      "lansoprazole",
+      "rabeprazole",
+      "ppi",
+    ];
+
+    if (includesKeyword(source, diabetesStrongKeywords)) {
+      return "diabetes";
+    }
+
+    if (includesKeyword(source, bloodPressureStrongKeywords)) {
+      return "bloodPressure";
+    }
+
+    if (includesKeyword(source, refluxStrongKeywords)) {
+      return "reflux";
+    }
+
+    const normal = normalizeText(source);
+    const compact = removeSpaces(source);
+    const hasMedicineContext =
+      compact.includes("약") ||
+      compact.includes("정") ||
+      compact.includes("mg") ||
+      compact.includes("복용") ||
+      compact.includes("처방");
+
+    if (hasMedicineContext && (normal.includes("당뇨") || compact.includes("혈당조절"))) {
+      return "diabetes";
+    }
+
+    if (hasMedicineContext && normal.includes("혈압")) {
+      return "bloodPressure";
+    }
+
+    if (hasMedicineContext && (normal.includes("역류") || normal.includes("위산") || normal.includes("식도염"))) {
+      return "reflux";
+    }
+
+    return "unknown";
+  };
+
   const getMedicineAnalysisText = (type) => {
     if (type === "diabetes") {
       return {
@@ -629,23 +713,31 @@ export default function App() {
 
     setMedicineOcrText(ocrText);
 
-    const analysisSource = `${name} ${userInput} ${ocrText}`;
-    const detectedType = detectMedicineType(analysisSource);
+    const analysisSource = ocrText.trim();
+    const detectedType = analysisSource ? detectMedicineTypeFromMedicinePhoto(analysisSource) : "unknown";
     const analysis = getMedicineAnalysisText(detectedType);
 
     setMedicineHintType(detectedType);
 
-    if (ocrText.trim()) {
+    if (ocrText.trim() && detectedType !== "unknown") {
       setMedicinePhotoAnalysis(
-        `${analysis.title}\n${analysis.message}\n\n약 봉투 사진의 글자를 확인해 복약 설명에 반영했습니다.`
+        `${analysis.title}
+${analysis.message}
+
+약 봉투 사진의 글자를 확인해 복약 설명에 반영했습니다.`
       );
+      setReminderDrafts(generateReminderDrafts(detectedType, analysisSource));
+    } else if (ocrText.trim()) {
+      setMedicinePhotoAnalysis(
+        "사진에서 글자는 일부 확인되었지만, 약 종류를 특정하기 어렵습니다.\n약 봉투의 약 이름과 복용 시간이 잘 보이도록 다시 촬영하거나 진료 내용을 직접 입력해주세요."
+      );
+      setReminderDrafts(generateReminderDrafts("unknown", ""));
     } else {
       setMedicinePhotoAnalysis(
         "약 봉투 글자를 정확히 읽기 어렵습니다.\n약 이름과 복용 시간이 잘 보이도록 다시 촬영하거나, 진료 내용을 직접 입력해주세요."
       );
+      setReminderDrafts(generateReminderDrafts("unknown", ""));
     }
-
-    setReminderDrafts(generateReminderDrafts(detectedType, analysisSource));
   };
 
   const handleSelectMedicinePhoto = async () => {
@@ -790,7 +882,7 @@ export default function App() {
       const finalType =
         medicineHintType !== "unknown"
           ? medicineHintType
-          : detectMedicineType(`${userInput} ${medicinePhotoName}`);
+          : detectMedicineType(`${userInput} ${medicineOcrText}`);
 
       const nextResult = buildResultByType(finalType);
 
@@ -929,30 +1021,41 @@ ${result.hospital}
   };
 
   const scheduleMedicineNotification = async (plan) => {
-    const targetDate = getNextReminderDate(plan.timeText);
+    const nextDate = getNextReminderDate(plan.timeText);
 
-    if (!targetDate) {
+    if (!nextDate) {
       throw new Error("식사 시간이 설정되지 않았습니다.");
     }
 
     const medicineText = plan.medicines.join(", ");
+    const notificationIds = [];
 
-    return Notifications.scheduleNotificationAsync({
-      content: {
-        title: "마이닥터 약 복용 알림",
-        body: `${medicineText} 복용 시간입니다. 약 봉투의 복용법을 한 번 더 확인해주세요.`,
-        data: {
-          type: "medicine-reminder",
-          label: plan.label,
-          medicines: plan.medicines,
-          timeText: plan.timeText,
+    for (let dayOffset = 0; dayOffset < 7; dayOffset += 1) {
+      const scheduledDate = new Date(nextDate);
+      scheduledDate.setDate(nextDate.getDate() + dayOffset);
+
+      const notificationId = await Notifications.scheduleNotificationAsync({
+        content: {
+          title: "마이닥터 약 복용 알림",
+          body: `${medicineText} 복용 시간입니다. 약 봉투의 복용법을 한 번 더 확인해주세요.`,
+          data: {
+            type: "medicine-reminder",
+            label: plan.label,
+            medicines: plan.medicines,
+            timeText: plan.timeText,
+          },
         },
-      },
-      trigger: {
-        date: targetDate,
-        channelId: "medicine-reminders",
-      },
-    });
+        trigger: {
+          type: Notifications.SchedulableTriggerInputTypes.DATE,
+          date: scheduledDate,
+          channelId: "medicine-reminders",
+        },
+      });
+
+      notificationIds.push(notificationId);
+    }
+
+    return notificationIds;
   };
 
   const cancelReminderNotifications = async (reminder) => {
@@ -1011,11 +1114,11 @@ ${result.hospital}
       };
 
       try {
-        const notificationId = await scheduleMedicineNotification(nextPlan);
+        const notificationIds = await scheduleMedicineNotification(nextPlan);
         updatedReminders.push({
           ...nextPlan,
-          notificationId,
-          notificationIds: [notificationId],
+          notificationId: notificationIds[0] || null,
+          notificationIds,
           updatedAt: new Date().toISOString(),
         });
       } catch (error) {
@@ -1066,14 +1169,14 @@ ${result.hospital}
 
       for (let index = 0; index < basePlans.length; index += 1) {
         const plan = basePlans[index];
-        const notificationId = await scheduleMedicineNotification(plan);
+        const notificationIds = await scheduleMedicineNotification(plan);
 
         scheduledPlans.push({
           ...plan,
           id: `${plan.id}-${savedAt}-${index}`,
           purposeLabel,
-          notificationId,
-          notificationIds: [notificationId],
+          notificationId: notificationIds[0] || null,
+          notificationIds,
           createdAt: new Date().toISOString(),
         });
       }
