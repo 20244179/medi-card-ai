@@ -66,13 +66,6 @@ export default function App() {
     MontserratExtraBold: require("./assets/fonts/Montserrat-ExtraBold.ttf"),
   });
 
-  if (!fontsLoaded) {
-    return (
-      <SafeAreaView style={styles.safeArea}>
-        <View style={styles.appRoot} />
-      </SafeAreaView>
-    );
-  }
 
   const [activeTab, setActiveTab] = useState("home");
   const [screen, setScreen] = useState("home");
@@ -97,6 +90,14 @@ export default function App() {
   useEffect(() => {
     loadStoredData();
   }, []);
+
+  if (!fontsLoaded) {
+    return (
+      <SafeAreaView style={styles.safeArea}>
+        <View style={styles.appRoot} />
+      </SafeAreaView>
+    );
+  }
 
   const loadStoredData = async () => {
     try {
