@@ -96,6 +96,291 @@ const defaultResult = {
     "다시 병원에 가야 하는 상황이나 재진 일정을 정리해드립니다.",
 };
 
+const patientLanguageDB = [
+  {
+    category: "역류성 식도염",
+    term: "역류성 식도염",
+    aliases: ["역류성 식도염", "GERD", "gerd", "위식도 역류질환", "위식도역류질환"],
+    patientText: "위에 있는 음식물이나 위산이 식도로 거꾸로 올라와서 가슴이 쓰리거나 신물이 올라오는 병이에요.",
+  },
+  {
+    category: "역류성 식도염",
+    term: "PPI",
+    aliases: ["PPI", "ppi", "Proton Pump Inhibitor", "proton pump inhibitor", "양성자 펌프 억제제", "양성자펌프억제제"],
+    patientText: "위산이 과도하게 나오는 것을 강력하게 막아주는 약이에요.",
+  },
+  {
+    category: "역류성 식도염",
+    term: "라베프라졸",
+    aliases: ["라베프라졸", "Rabeprazole", "rabeprazole"],
+    patientText: "위산을 줄여주는 약의 구체적인 성분 이름 중 하나예요.",
+  },
+  {
+    category: "역류성 식도염",
+    term: "에소메프라졸",
+    aliases: ["에소메프라졸", "에스오메프라졸", "Esomeprazole", "esomeprazole"],
+    patientText: "위산을 덜 나오게 만들어서, 위산 때문에 헐어있는 식도나 위 점막을 보호해 주는 약이에요.",
+  },
+  {
+    category: "역류성 식도염",
+    term: "위 내시경",
+    aliases: ["위 내시경", "위내시경", "EGD", "egd", "상부위장관내시경", "상부 위장관 내시경"],
+    patientText: "입으로 얇은 카메라를 넣어서 식도와 위장 속이 헐었는지 눈으로 직접 확인하는 검사예요.",
+  },
+  {
+    category: "역류성 식도염",
+    term: "식도 괄약근",
+    aliases: ["식도 괄약근", "식도괄약근", "LES", "les", "하부식도괄약근", "하부 식도 괄약근"],
+    patientText: "밥 먹을 때만 열리고 평소에는 꽉 닫혀서 위산이 식도로 못 올라오게 막아주는 밸브 같은 근육이에요.",
+  },
+  {
+    category: "역류성 식도염",
+    term: "공복 복용",
+    aliases: ["공복 복용", "공복복용", "식전 복용", "식전복용", "식사 전", "식사전", "아침 식전", "아침식전"],
+    patientText: "식사하시기 30분 전, 위가 완전히 비어있을 때 약을 드시는 거예요. 이때 드셔야 약이 가장 일을 잘할 수 있습니다.",
+  },
+  {
+    category: "역류성 식도염",
+    term: "위산 분비 억제",
+    aliases: ["위산 분비 억제", "위산분비억제", "위산 억제", "위산억제", "산 분비 억제", "산분비억제"],
+    patientText: "위에서 독한 신물이 덜 만들어지게 꼭지 밸브를 잠가주는 거예요.",
+  },
+  {
+    category: "역류성 식도염",
+    term: "제산제",
+    aliases: ["제산제", "Antacid", "antacid"],
+    patientText: "이미 나온 독한 위산을 순한 물처럼 달래서 당장 속 쓰린 것을 빨리 가라앉혀주는 약이에요.",
+  },
+  {
+    category: "역류성 식도염",
+    term: "미란성 식도염",
+    aliases: ["미란성 식도염", "미란성식도염", "Erosive Esophagitis", "erosive esophagitis"],
+    patientText: "위산이 계속 식도로 올라와서 식도 벽이 빨갛게 헐고 긁힌 상처가 난 상태를 말해요.",
+  },
+  {
+    category: "고혈압",
+    term: "고혈압",
+    aliases: ["고혈압", "HTN", "htn", "Hypertension", "hypertension", "혈압이 높", "혈압 높"],
+    patientText: "혈압이 기준보다 높은 상태예요.",
+  },
+  {
+    category: "고혈압",
+    term: "수축기 혈압",
+    aliases: ["수축기 혈압", "수축기혈압", "SBP", "sbp", "최고 혈압", "최고혈압"],
+    patientText: "심장이 피를 짜내는 힘, 즉 심장이 최고로 수축해서 피를 뿜어낼 때 혈관이 받는 가장 높은 압력이에요. 혈압을 쟀을 때 나오는 숫자 중 앞의 숫자입니다.",
+  },
+  {
+    category: "고혈압",
+    term: "이완기 혈압",
+    aliases: ["이완기 혈압", "이완기혈압", "DBP", "dbp", "최저 혈압", "최저혈압"],
+    patientText: "심장이 힘을 빼고 쉴 때 혈관에 남는 압력이에요. 혈압을 쟀을 때 나오는 숫자 중 뒤의 숫자입니다.",
+  },
+  {
+    category: "고혈압",
+    term: "ACE 억제제",
+    aliases: ["ACE 억제제", "ACE억제제", "ace inhibitor", "ACE inhibitor", "안지오텐신 전환효소 억제제"],
+    patientText: "우리 몸에서 혈관을 좁히는 효소가 일하지 못하게 가로막는 약이에요. 덕분에 혈관이 넓어지고 피의 양도 적당해져서, 심장이 훨씬 덜 힘들게 일할 수 있도록 도와줍니다.",
+  },
+  {
+    category: "고혈압",
+    term: "ARB",
+    aliases: ["ARB", "arb", "Angiotensin Receptor Blocker", "angiotensin receptor blocker", "안지오텐신 수용체 차단제"],
+    patientText: "혈관을 꽉 조이고 수분을 붙잡아 두는 물질이 활동하지 못하게 막아주는 약이에요. 혈관이 넓어지고 수분이 줄어들면서 혈압이 내려갑니다.",
+  },
+  {
+    category: "고혈압",
+    term: "칼슘채널차단제",
+    aliases: ["칼슘채널차단제", "칼슘 채널 차단제", "CCB", "ccb", "calcium channel blocker"],
+    patientText: "근육이 움직이는 데 필요한 칼슘이 들어오는 길을 살짝 차단하는 약이에요. 혈관 근육이 긴장을 풀고 넓어지면서, 심장도 너무 과하게 뛰지 않고 편안해집니다.",
+  },
+  {
+    category: "고혈압",
+    term: "이뇨제",
+    aliases: ["이뇨제", "Diuretic", "diuretic", "소변 양", "소변양"],
+    patientText: "소변 양을 늘려 몸속의 수분과 소금기를 밖으로 빼주는 약이에요. 붓기가 빠지고 피의 양이 줄어들면서 혈압도 내려갑니다.",
+  },
+  {
+    category: "고혈압",
+    term: "베타차단제",
+    aliases: ["베타차단제", "베타 차단제", "Beta Blocker", "beta blocker"],
+    patientText: "심장이 너무 흥분하는 것을 막아주어 혈압을 낮추고, 심장의 부담을 덜어주는 약이에요.",
+  },
+  {
+    category: "고혈압",
+    term: "암로디핀",
+    aliases: ["암로디핀", "Amlodipine", "amlodipine", "노바스크", "Norvasc", "norvasc"],
+    patientText: "손발로 가는 가느다란 혈관들을 잘 넓혀주어 혈압을 낮추고 심장 통증을 막아주는 약이에요.",
+  },
+  {
+    category: "고혈압",
+    term: "기립성 저혈압",
+    aliases: ["기립성 저혈압", "기립성저혈압", "Orthostatic Hypotension", "orthostatic hypotension", "일어설 때 어지", "일어설때 어지"],
+    patientText: "앉았다 일어설 때 핑 돌며 혈압이 뚝 떨어지는 증상이에요. 뇌로 가는 피가 잠깐 부족해지면서 순간적으로 눈앞이 캄캄해지거나 어지러울 수 있습니다.",
+  },
+  {
+    category: "제2형 당뇨",
+    term: "제2형 당뇨병",
+    aliases: ["제2형 당뇨병", "제2형 당뇨", "2형 당뇨", "당뇨병", "당뇨", "Type 2 DM", "type 2 dm", "T2DM", "t2dm", "diabetes", "diabetes mellitus", "DM", "dm", "혈당"],
+    patientText: "우리 몸이 인슐린이라는 호르몬을 잘 쓰지 못해서, 핏속에 설탕인 포도당이 너무 많이 남아도는 질환이에요.",
+  },
+  {
+    category: "제2형 당뇨",
+    term: "당화혈색소",
+    aliases: ["당화혈색소", "HbA1c", "hba1c", "A1c", "a1c"],
+    patientText: "내 피가 지난 2~3달 동안 얼마나 달달했는지 보여주는 성적표 같은 검사예요.",
+  },
+  {
+    category: "제2형 당뇨",
+    term: "공복혈당",
+    aliases: ["공복혈당", "공복 혈당", "FBS", "fbs", "fasting blood sugar"],
+    patientText: "내 몸이 음식을 안 먹고 쉬고 있을 때, 순수하게 몸 자체적으로 유지하는 기초 혈당이에요.",
+  },
+  {
+    category: "제2형 당뇨",
+    term: "메트포르민",
+    aliases: ["메트포르민", "Metformin", "metformin", "글루파", "글루파정", "GLUPA", "glupa", "GLUPA 850", "glupa 850", "GLUPA50", "glupa50", "glupa850", "다이아벡스", "Diabex", "diabex"],
+    patientText: "제2형 당뇨병 치료에서 가장 기본적으로 처방되는 약이에요. 간에서 당을 만드는 것을 억제하고, 몸의 세포들이 인슐린에 더 잘 반응하도록 도와서 혈당을 낮추는 역할을 합니다.",
+  },
+  {
+    category: "제2형 당뇨",
+    term: "다이아미크론",
+    aliases: ["다이아미크론", "다이아미크론엠알", "디아미크론", "디아미크론엠알", "DiAMiCRON", "Diamicron", "diamicron", "DiAMiCRON MR", "Diamicron MR", "diamicron mr", "diamicronmr", "Gliclazide", "gliclazide", "글리클라지드"],
+    patientText: "혈당을 낮추기 위해 췌장에서 인슐린이 더 잘 나오도록 도와주는 당뇨병 약이에요. 저혈당이 생길 수 있어 식사와 복용 시간을 잘 지키는 것이 중요합니다.",
+  },
+  {
+    category: "제2형 당뇨",
+    term: "인슐린",
+    aliases: ["인슐린", "Insulin", "insulin"],
+    patientText: "우리 몸의 췌장에서 자연적으로 만들어지는 호르몬이에요. 혈액 속 포도당을 세포 안으로 들여보내 에너지로 쓸 수 있게 해주며, 혈당 수치를 직접 낮춰주는 가장 강력한 수단입니다.",
+  },
+  {
+    category: "제2형 당뇨",
+    term: "저혈당",
+    aliases: ["저혈당", "Hypoglycemia", "hypoglycemia", "식은땀", "손떨림", "손 떨림", "혈당 낮"],
+    patientText: "혈액 속 포도당 농도가 필요 이상으로 낮아진 상태예요. 보통 혈당이 70mg/dL 아래로 떨어지면 식은땀, 떨림, 어지러움 같은 증상이 나타날 수 있으며, 이때는 즉시 당분을 섭취해야 합니다.",
+  },
+  {
+    category: "제2형 당뇨",
+    term: "DPP-4 억제제",
+    aliases: ["DPP-4 억제제", "DPP4 억제제", "DPP-4", "DPP4", "글립틴", "gliptin"],
+    patientText: "식사 후에 혈당을 조절하는 인크레틴 호르몬이 빨리 분해되지 않도록 막아주는 약이에요. 인슐린 분비를 촉진하고 글루카곤 분비를 억제하여 식후 혈당을 관리해줍니다.",
+  },
+  {
+    category: "제2형 당뇨",
+    term: "SGLT2 억제제",
+    aliases: ["SGLT2 억제제", "SGLT-2 억제제", "SGLT2", "SGLT-2"],
+    patientText: "신장에서 포도당이 다시 몸 안으로 흡수되지 않도록 막는 약이에요. 남은 포도당을 소변으로 직접 내보내 혈당을 낮추며, 혈압 조절이나 체중 감소에도 도움을 줄 수 있습니다.",
+  },
+  {
+    category: "제2형 당뇨",
+    term: "당뇨망막병증",
+    aliases: ["당뇨망막병증", "당뇨 망막병증", "Diabetic Retinopathy", "diabetic retinopathy"],
+    patientText: "고혈당 상태가 오래 지속되어 눈의 망막에 있는 미세혈관이 손상되는 질환이에요. 방치하면 시력이 떨어지거나 실명에 이를 수 있어 정기적인 안과 검진이 필요합니다.",
+  },
+  {
+    category: "제2형 당뇨",
+    term: "당뇨발",
+    aliases: ["당뇨발", "당뇨 발", "Diabetic Foot", "diabetic foot", "당뇨병성 족부"],
+    patientText: "당뇨병 환자의 발에 생기는 신경 손상, 혈액순환 장애, 감염 등의 문제를 통칭하는 말이에요. 감각이 무뎌져 상처가 나도 잘 모를 수 있고 치유가 더디기 때문에, 매일 발 상태를 확인해야 합니다.",
+  },
+];
+
+function normalizePatientText(text) {
+  return String(text || "").toLowerCase().replace(/\s+/g, " ").trim();
+}
+
+function compactPatientText(text) {
+  return normalizePatientText(text).replace(/\s/g, "");
+}
+
+function isKoreanText(text) {
+  return /[가-힣]/.test(String(text || ""));
+}
+
+function isEnglishOrAbbreviation(text) {
+  return /[A-Za-z]/.test(String(text || ""));
+}
+
+function findMatchedAlias(sourceText, aliases = []) {
+  const source = String(sourceText || "");
+  const normalized = normalizePatientText(source);
+  const compact = compactPatientText(source);
+  const sortedAliases = [...aliases].sort((a, b) => String(b).length - String(a).length);
+
+  for (const alias of sortedAliases) {
+    const rawAlias = String(alias || "");
+    if (!rawAlias) continue;
+
+    const aliasNormal = normalizePatientText(rawAlias);
+    const aliasCompact = compactPatientText(rawAlias);
+
+    if (isKoreanText(rawAlias) && rawAlias.length <= 2) {
+      const escaped = rawAlias.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      const boundaryRegex = new RegExp(`(^|[^가-힣])(${escaped})(?=$|[^가-힣])`, "i");
+      const boundaryMatch = source.match(boundaryRegex);
+      if (boundaryMatch && boundaryMatch[2]) return boundaryMatch[2];
+      continue;
+    }
+
+    if (normalized.includes(aliasNormal)) {
+      const index = normalized.indexOf(aliasNormal);
+      const originalChunk = source.slice(index, index + rawAlias.length).trim();
+      return originalChunk || rawAlias;
+    }
+
+    if (aliasCompact && compact.includes(aliasCompact)) {
+      return rawAlias;
+    }
+  }
+
+  return "";
+}
+
+function makePatientLanguageTitle(item, matchedAlias) {
+  if (!matchedAlias) return item.term;
+
+  const matched = String(matchedAlias).trim();
+  const term = String(item.term || "").trim();
+
+  if (!matched || normalizePatientText(matched) === normalizePatientText(term)) {
+    return term;
+  }
+
+  if (isEnglishOrAbbreviation(matched)) {
+    return `${matched} → ${term}`;
+  }
+
+  return term;
+}
+
+function findPatientLanguageMatches(inputText = "") {
+  if (!inputText || !String(inputText).trim()) return [];
+
+  const matched = [];
+  const seen = new Set();
+
+  patientLanguageDB.forEach((item) => {
+    const matchedAlias = findMatchedAlias(inputText, item.aliases || []);
+    if (!matchedAlias) return;
+
+    const key = `${item.category}-${item.term}`;
+    if (seen.has(key)) return;
+
+    seen.add(key);
+    matched.push({
+      ...item,
+      matchedAlias,
+      displayTitle: makePatientLanguageTitle(item, matchedAlias),
+    });
+  });
+
+  return matched;
+}
+
+function makePatientLanguageInput(...texts) {
+  return texts.filter(Boolean).join(" ");
+}
+
 export default function App() {
   const [fontsLoaded] = useFonts({
     NanumSquareRoundR: require("./assets/fonts/NanumSquareRoundR.ttf"),
@@ -112,6 +397,7 @@ export default function App() {
 
   const [userInput, setUserInput] = useState("");
   const [result, setResult] = useState(defaultResult);
+  const [patientLanguageMatches, setPatientLanguageMatches] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
 
   const [medicinePhotoUri, setMedicinePhotoUri] = useState("");
@@ -278,7 +564,9 @@ export default function App() {
       "글루파",
       "글루파850",
       "glupa",
+      "glupa 850",
       "glupa850",
+      "glupa50",
       "다이아미크론",
       "디아미크론",
       "다이아미크론엠알",
@@ -363,7 +651,9 @@ export default function App() {
       "gliclazide",
       "metformin",
       "glupa",
+      "glupa 850",
       "glupa850",
+      "glupa50",
       "insulin",
       "인슐린",
     ];
@@ -750,18 +1040,16 @@ export default function App() {
 
     setMedicineOcrText(ocrText);
 
-    const analysisSource = ocrText.trim();
-    const detectedType = analysisSource ? detectMedicineTypeFromMedicinePhoto(analysisSource) : "unknown";
+    const analysisSource = makePatientLanguageInput(ocrText, name);
+    const detectedType = analysisSource.trim() ? detectMedicineTypeFromMedicinePhoto(analysisSource) : "unknown";
     const analysis = getMedicineAnalysisText(detectedType);
 
     setMedicineHintType(detectedType);
 
-    if (ocrText.trim() && detectedType !== "unknown") {
+    if (detectedType !== "unknown") {
       setMedicinePhotoAnalysis(
         `${analysis.title}
-${analysis.message}
-
-약 봉투 사진의 글자를 확인해 복약 설명에 반영했습니다.`
+${analysis.message}${ocrText.trim() ? "\n\n약 봉투 사진의 글자를 확인해 복약 설명에 반영했습니다." : ""}`
       );
       setReminderDrafts(generateReminderDrafts(detectedType, analysisSource));
     } else if (ocrText.trim()) {
@@ -827,6 +1115,7 @@ ${analysis.message}
     setMedicinePhotoAnalysis("");
     setMedicineOcrText("");
     setMedicineHintType("unknown");
+    setPatientLanguageMatches([]);
     setReminderDrafts([]);
   };
 
@@ -916,15 +1205,18 @@ ${analysis.message}
     setIsLoading(true);
 
     setTimeout(() => {
+      const userProvidedText = makePatientLanguageInput(userInput, medicineOcrText, medicinePhotoName);
       const finalType =
         medicineHintType !== "unknown"
           ? medicineHintType
-          : detectMedicineType(`${userInput} ${medicineOcrText}`);
+          : detectMedicineType(userProvidedText);
 
       const nextResult = buildResultByType(finalType);
+      const nextPatientLanguageMatches = findPatientLanguageMatches(userProvidedText);
 
       setResult(nextResult);
-      setReminderDrafts(generateReminderDrafts(finalType, userInput));
+      setPatientLanguageMatches(nextPatientLanguageMatches);
+      setReminderDrafts(generateReminderDrafts(finalType, userProvidedText));
       setIsLoading(false);
       setScreen("result");
       setActiveTab("home");
@@ -954,6 +1246,7 @@ ${analysis.message}
     setEditingRecord(record);
     setUserInput(record.input || "");
     setResult(record.result || defaultResult);
+    setPatientLanguageMatches(findPatientLanguageMatches(makePatientLanguageInput(record.input, record.medicineOcrText, record.medicinePhotoName)));
     setMedicinePhotoUri(record.medicinePhotoUri || "");
     setMedicinePhotoName(record.medicinePhotoName || "");
     setMedicinePhotoAnalysis(record.medicinePhotoAnalysis || "");
@@ -1280,6 +1573,7 @@ ${result.hospital}
   const clearInputState = () => {
     setUserInput("");
     setResult(defaultResult);
+    setPatientLanguageMatches([]);
     setIsLoading(false);
     setMedicinePhotoUri("");
     setMedicinePhotoName("");
@@ -1307,12 +1601,13 @@ ${result.hospital}
   };
 
   const openReminderSetup = () => {
+    const reminderSourceText = makePatientLanguageInput(userInput, medicineOcrText, medicinePhotoName);
     const finalType =
       medicineHintType !== "unknown"
         ? medicineHintType
-        : detectMedicineType(`${userInput} ${medicinePhotoName}`);
+        : detectMedicineType(reminderSourceText);
 
-    setReminderDrafts(generateReminderDrafts(finalType, userInput));
+    setReminderDrafts(generateReminderDrafts(finalType, reminderSourceText));
     setScreen("reminderSetup");
     setActiveTab("home");
   };
@@ -1635,6 +1930,8 @@ ${result.hospital}
             <Text style={styles.summaryTitle}>💡 오늘 꼭 기억할 내용</Text>
             <Text style={styles.summaryText}>{result.summary}</Text>
           </View>
+
+          <PatientLanguageCards matches={patientLanguageMatches} />
 
           <InfoCard icon="📋" title="무슨 병인가요?" text={result.disease} />
           <InfoCard icon="💊" title="약은 어떻게 먹나요?" text={result.medicine} />
@@ -1967,6 +2264,24 @@ ${result.hospital}
   );
 }
 
+function PatientLanguageCards({ matches }) {
+  if (!matches || matches.length === 0) return null;
+
+  return (
+    <View style={styles.patientLanguageBox}>
+      <Text style={styles.patientLanguageHeader}>🗣️ 어려운 의료 표현을 쉬운 말로 바꿨어요</Text>
+
+      {matches.map((item, index) => (
+        <View key={`${item.category}-${item.term}-${index}`} style={styles.patientLanguageCard}>
+          <Text style={styles.patientLanguageTerm}>{item.displayTitle || item.term}</Text>
+          <Text style={styles.patientLanguageCategory}>{item.category}</Text>
+          <Text style={styles.patientLanguageText}>{item.patientText}</Text>
+        </View>
+      ))}
+    </View>
+  );
+}
+
 function InfoCard({ icon, title, text }) {
   return (
     <View style={styles.infoCard}>
@@ -2149,13 +2464,20 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: "#F4F8FB",
+    alignItems: "center",
   },
   keyboardView: {
     flex: 1,
+    width: "100%",
+    maxWidth: 520,
     backgroundColor: "#F4F8FB",
+    borderLeftWidth: 1,
+    borderRightWidth: 1,
+    borderColor: "#E1EDF4",
   },
   appRoot: {
     flex: 1,
+    width: "100%",
     backgroundColor: "#F4F8FB",
   },
   appScreen: {
@@ -2569,6 +2891,52 @@ const styles = StyleSheet.create({
     fontSize: 18,
     lineHeight: 32,
     color: "#083A5A",
+  },
+  patientLanguageBox: {
+    backgroundColor: "#FFFDF5",
+    borderRadius: 24,
+    padding: 18,
+    borderWidth: 1.8,
+    borderColor: "#F3DFA7",
+    marginBottom: 18,
+  },
+  patientLanguageHeader: {
+    fontFamily: FONT.koExtraBold,
+    fontSize: 20,
+    lineHeight: 31,
+    color: "#5A3B05",
+    marginBottom: 12,
+  },
+  patientLanguageCard: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 18,
+    padding: 15,
+    borderWidth: 1.4,
+    borderColor: "#F1E3B8",
+    marginBottom: 10,
+  },
+  patientLanguageTerm: {
+    fontFamily: FONT.koExtraBold,
+    fontSize: 18,
+    color: "#083A5A",
+    marginBottom: 4,
+  },
+  patientLanguageCategory: {
+    fontFamily: FONT.koBold,
+    alignSelf: "flex-start",
+    backgroundColor: "#FFF4CC",
+    color: "#7A4C00",
+    borderRadius: 999,
+    paddingVertical: 4,
+    paddingHorizontal: 10,
+    fontSize: 13,
+    marginBottom: 8,
+  },
+  patientLanguageText: {
+    fontFamily: FONT.koBold,
+    fontSize: 17,
+    lineHeight: 30,
+    color: "#17384A",
   },
   infoCard: {
     backgroundColor: "#FFFFFF",
